@@ -11,3 +11,14 @@ Guest disk images that DockZ builds bundle separately-licensed upstream
 software (Alpine Linux, Debian, Ubuntu, Docker Engine, k3s, kubeadm, etc.).
 Those components retain their own respective licenses and are not covered by
 this Work's license.
+
+DockZ does not redistribute the Docker CLI. When a Mac has no `docker` binary,
+DockZ can download the official static builds at the user's request:
+
+  - Docker CLI      https://download.docker.com/mac/static/stable/aarch64/
+                    (Docker Inc., Apache License 2.0)
+  - Compose plugin  https://github.com/docker/compose/releases
+                    (Docker Inc., Apache License 2.0)
+
+They are fetched over HTTPS, verified against pinned SHA-256 digests, stored in
+the user's DockZ data folder, and retain their own upstream licenses.

@@ -48,12 +48,21 @@ Linux machines.
   relocatable data folder (put large disks on an external SSD).
 - **Zero external dependencies** — only Apple frameworks and in-repo code.
   Interactive shells (SSH, `docker exec`) open in the system Terminal.app.
+- **Docker CLI on demand** — no Homebrew required: DockZ can fetch the official
+  static `docker` + compose binaries itself, checksum-verified.
 
 ## Requirements
 
 - macOS **15 (Sequoia) or later**
 - **Apple Silicon** (M1 or newer)
 - Command Line Tools or Xcode (to build from source)
+
+**No Homebrew, no Docker Desktop, no admin password.** The dashboard talks to the
+engine directly over vsock, so it needs no `docker` binary at all. Compose stacks
+and container shells do — if the Mac has none, DockZ downloads the official static
+`docker` CLI + compose plugin (≈48 MB) into its own data folder from
+**Settings → Docker CLI**, verifying both against pinned SHA-256 digests. An
+existing `docker` install is always preferred and never touched.
 
 ## Install / Build
 

@@ -55,17 +55,21 @@ final class DashboardStore: ObservableObject {
 
     /// Opens a `docker exec -it` shell for a running container in Terminal.app.
     func openContainerTerminal(_ container: ContainerSummary) {
-        guard let docker = DockerContextInstaller.findDockerCLI() else {
-            lastError = "docker CLI not found"
+        guard let docker = DockerCLI.resolve() else {
+            lastError = "Docker CLI not found. Install it from Settings → Docker CLI."
             return
         }
         let socket = DockzPaths().dockerSocket.path
+        var environment = ["DOCKER_HOST": "unix://\(socket)"]
+        if let configDirectory = docker.configDirectory {
+            environment["DOCKER_CONFIG"] = configDirectory
+        }
         TerminalLauncher.launch(TerminalCommand(
             title: container.name,
             subtitle: "docker exec — \(container.image)",
-            executable: docker,
+            executable: docker.path,
             arguments: ["exec", "-it", container.name, "/bin/sh", "-c", "[ -x /bin/bash ] && exec bash || exec sh"],
-            environment: ["DOCKER_HOST": "unix://\(socket)"]
+            environment: environment
         ))
     }
 

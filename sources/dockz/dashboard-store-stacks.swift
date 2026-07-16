@@ -120,17 +120,20 @@ extension DashboardStore {
     }
 
     private func runCompose(title: String, arguments: [String]) {
-        guard !composeRunning, let docker = DockerContextInstaller.findDockerCLI() else { return }
+        guard !composeRunning else { return }
+        guard let docker = DockerCLI.resolve() else {
+            lastError = "Docker CLI not found. Install it from Settings → Docker CLI."
+            return
+        }
         composeRunning = true
         composeTitle = title
         composeOutput = "$ docker \(arguments.joined(separator: " "))\n\n"
 
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: docker)
+        process.executableURL = URL(fileURLWithPath: docker.path)
         process.arguments = arguments
-        var environment = ProcessInfo.processInfo.environment
-        environment["DOCKER_HOST"] = "unix://\(DockzPaths().dockerSocket.path)"
-        process.environment = environment
+        process.environment = DockerCLI.environment(for: docker,
+                                                    socketPath: DockzPaths().dockerSocket.path)
 
         let pipe = Pipe()
         process.standardOutput = pipe

@@ -18,6 +18,9 @@ enum DockzMain {
         if arguments.contains("test") {
             TestRunner.run()
         }
+        if arguments.contains("install-docker-cli") {
+            DockerCLIInstaller.runCLI()
+        }
         if arguments.contains("build-machine-base") {
             MachineCLI.runBuildBase()
         }

@@ -17,6 +17,7 @@ enum TestRunner {
         logoRepo()
         clusterTemplates()
         snapshots()
+        dockerCLIResolution()
 
         print("")
         if failures.isEmpty {
@@ -150,6 +151,41 @@ enum TestRunner {
             .hasPrefix("kubeadm join") == true, "k8s join capture")
         expect(MachineDistro.by(id: "alpine-3.22")?.supportedEngines == [.k3s], "alpine → k3s only")
         expect(MachineDistro.by(id: "debian-13")?.supportedEngines == [.k3s, .k8s], "debian → k3s+k8s")
+    }
+
+    /// The managed CLI must only be used when the host has no docker of its own,
+    /// and only it may override DOCKER_CONFIG (a system docker keeps its auth).
+    private static func dockerCLIResolution() {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("dockz-cli-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let paths = DockzPaths(baseDirectory: root)
+
+        // Nothing installed anywhere DockZ controls → no managed CLI to find.
+        expect(!DockerCLIInstaller.isInstalled(paths), "managed CLI absent before install")
+
+        // Fake an installed managed CLI.
+        try? FileManager.default.createDirectory(at: paths.managedCLIDirectory,
+                                                 withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: paths.managedDockerCLI.path, contents: Data("#!/bin/sh\n".utf8),
+                                       attributes: [.posixPermissions: 0o755])
+        expect(DockerCLIInstaller.isInstalled(paths), "managed CLI detected after install")
+
+        let managed = DockerCLI.Resolved(path: paths.managedDockerCLI.path,
+                                         configDirectory: paths.managedDockerConfig.path)
+        let environment = DockerCLI.environment(for: managed, socketPath: "/tmp/d.sock")
+        expectEqual(environment["DOCKER_HOST"], "unix:///tmp/d.sock", "DOCKER_HOST wired to socket")
+        expectEqual(environment["DOCKER_CONFIG"], paths.managedDockerConfig.path,
+                    "managed CLI sets DOCKER_CONFIG so compose plugin resolves")
+
+        let system = DockerCLI.Resolved(path: "/opt/homebrew/bin/docker", configDirectory: nil)
+        let systemEnvironment = DockerCLI.environment(for: system, socketPath: "/tmp/d.sock")
+        expect(systemEnvironment["DOCKER_CONFIG"] == ProcessInfo.processInfo.environment["DOCKER_CONFIG"],
+               "system CLI keeps the user's own DOCKER_CONFIG")
+
+        // Pinned artefacts must carry a full SHA-256 or the install can't fail closed.
+        expectEqual(DockerCLIInstaller.dockerPin.sha256.count, 64, "docker pin has a sha256")
+        expectEqual(DockerCLIInstaller.composePin.sha256.count, 64, "compose pin has a sha256")
     }
 
     private static func snapshots() {

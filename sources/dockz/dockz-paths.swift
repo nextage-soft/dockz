@@ -24,6 +24,17 @@ struct DockzPaths {
     /// cloud-init seed ISO (cloud-image machines only; absent otherwise).
     var seedISO: URL { baseDirectory.appendingPathComponent("seed.iso") }
 
+    // MARK: - Managed docker CLI (downloaded when the host has none)
+
+    /// `bin/docker` — the CLI DockZ downloads so a fresh Mac needs no Homebrew.
+    var managedCLIDirectory: URL { baseDirectory.appendingPathComponent("bin", isDirectory: true) }
+    var managedDockerCLI: URL { managedCLIDirectory.appendingPathComponent("docker") }
+    /// DOCKER_CONFIG for the managed CLI; `cli-plugins/` under it holds compose.
+    var managedDockerConfig: URL { baseDirectory.appendingPathComponent("docker-config", isDirectory: true) }
+    var managedComposePlugin: URL {
+        managedDockerConfig.appendingPathComponent("cli-plugins/docker-compose")
+    }
+
     var diskImageExists: Bool {
         FileManager.default.fileExists(atPath: diskImage.path)
     }

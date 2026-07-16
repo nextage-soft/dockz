@@ -70,6 +70,7 @@ struct VMSettingsView: View {
                 Toggle("Share home directory (virtiofs bind mounts)", isOn: $shareHome)
                 Toggle("Rosetta (run linux/amd64 images)", isOn: $enableRosetta)
             }
+            DockerCLISettingsSection(store: store)
             Section {
                 HStack {
                     Text("VM: \(store.hostActions?.vmStateLabel() ?? "?")")
