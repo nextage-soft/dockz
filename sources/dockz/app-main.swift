@@ -21,6 +21,9 @@ enum DockzMain {
         if arguments.contains("install-docker-cli") {
             DockerCLIInstaller.runCLI()
         }
+        if arguments.contains("setup-shell") {
+            ShellIntegrationInstaller.runCLI(remove: arguments.contains("--remove"))
+        }
         if arguments.contains("build-machine-base") {
             MachineCLI.runBuildBase()
         }

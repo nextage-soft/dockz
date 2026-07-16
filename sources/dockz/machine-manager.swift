@@ -52,7 +52,8 @@ final class MachineManager: ObservableObject {
         let names = (try? FileManager.default.contentsOfDirectory(atPath: machinesDirectory.path)) ?? []
         var updated: [Machine] = []
         for name in names.sorted() {
-            guard !name.hasPrefix("."), !name.hasPrefix("id_ed25519") else { continue }
+            // "bases" holds the distro template images, not a machine.
+            guard !name.hasPrefix("."), !name.hasPrefix("id_ed25519"), name != "bases" else { continue }
             let directory = machinesDirectory.appendingPathComponent(name, isDirectory: true)
             var isDirectory: ObjCBool = false
             guard FileManager.default.fileExists(atPath: directory.path, isDirectory: &isDirectory),
@@ -97,7 +98,12 @@ final class MachineManager: ObservableObject {
             sizeGB: 4,
             profile: "machine",
             publicKey: publicKey,
-            progress: { [weak self] line in
+            progress: { [weak self] update in
+                DispatchQueue.main.async {
+                    self?.buildOutput += "==> [\(Int(update.fraction * 100))%] \(update.label)\n"
+                }
+            },
+            console: { [weak self] line in
                 DispatchQueue.main.async { self?.buildOutput += line + "\n" }
             }
         )

@@ -31,17 +31,35 @@ struct DockerCLISettingsSection: View {
                 }
                 if isManaged(resolved) {
                     LabeledContent("Version", value: "docker \(DockerCLIInstaller.dockerPin.version) · compose \(DockerCLIInstaller.composePin.version)")
-                    HStack {
-                        Text("To use `docker` in your own Terminal, add these to ~/.zshrc:")
-                            .font(.caption).foregroundStyle(.secondary)
-                        Spacer()
-                        Button("Copy shell setup") { copyShellSetup() }
-                            .controlSize(.small)
+                    if shellInstalled {
+                        LabeledContent("Terminal") {
+                            Label("Set up in \(rcFileName)", systemImage: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                        }
+                    } else {
+                        HStack {
+                            Text("Make `docker` work in your own Terminal:")
+                                .font(.caption).foregroundStyle(.secondary)
+                            Spacer()
+                            Button("Set Up Terminal") { setUpShell() }
+                                .controlSize(.small)
+                            Button("Copy instead") { copyShellSetup() }
+                                .controlSize(.small)
+                        }
                     }
                     HStack {
                         Spacer()
+                        if shellInstalled {
+                            Button("Undo Terminal setup") {
+                                try? ShellIntegrationInstaller.uninstall()
+                                status = "Removed from \(rcFileName)."
+                                refresh += 1
+                            }
+                            .controlSize(.small)
+                        }
                         Button("Remove", role: .destructive) {
                             DockerCLIInstaller.uninstall()
+                            try? ShellIntegrationInstaller.uninstall()
                             refresh += 1
                         }
                         .controlSize(.small)
@@ -56,7 +74,7 @@ struct DockerCLISettingsSection: View {
             } else {
                 Label("Not found", systemImage: "exclamationmark.triangle.fill")
                     .foregroundStyle(.orange)
-                Text("The dashboard works without it, but compose stacks and container shells need a `docker` binary. DockZ can download the official static build — no Homebrew, no admin password.")
+                Text("The dashboard works without it, but compose stacks and container shells need a `docker` binary. DockZ can download the official static build and set up your terminal — no Homebrew, no admin password.")
                     .font(.caption).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 HStack {
@@ -80,6 +98,25 @@ struct DockerCLISettingsSection: View {
         resolved.configDirectory != nil
     }
 
+    private var shellInstalled: Bool {
+        _ = refresh
+        return ShellIntegrationInstaller.isInstalled()
+    }
+
+    private var rcFileName: String {
+        "~/" + ShellIntegrationInstaller.rcFileURL().lastPathComponent
+    }
+
+    private func setUpShell() {
+        do {
+            try ShellIntegrationInstaller.install()
+            status = "Done — open a new terminal and `docker ps` just works."
+        } catch {
+            status = error.localizedDescription
+        }
+        refresh += 1
+    }
+
     private func install() {
         installing = true
         status = ""
@@ -87,7 +124,11 @@ struct DockerCLISettingsSection: View {
             installing = false
             switch result {
             case .success:
-                status = "Installed."
+                // Finish the job: wire the terminal too, so `docker` works in a
+                // new shell without a second click. The block steps aside by
+                // itself if a system docker ever appears.
+                try? ShellIntegrationInstaller.install()
+                status = "Installed — open a new terminal and `docker ps` just works."
                 refresh += 1
                 // The `dockz` context can now be created with the new CLI.
                 DockerContextInstaller.ensureContext(socketPath: DockzPaths().dockerSocket.path)

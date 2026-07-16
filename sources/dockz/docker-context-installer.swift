@@ -43,9 +43,21 @@ enum DockerContextInstaller {
             return
         }
         let hostArgument = "host=unix://\(socketPath)"
+        // The managed CLI's config dir belongs to DockZ, so making `dockz` its
+        // default context is expected — without it a fresh install points at
+        // /var/run/docker.sock and `docker ps` fails. A system docker's config
+        // is the user's own; never switch their default context.
+        let makeDefault: () -> Void = {
+            guard docker.configDirectory != nil else { return }
+            runDocker(docker, ["context", "use", "dockz"], completion: nil)
+        }
         runDocker(docker, ["context", "create", "dockz", "--docker", hostArgument]) { created in
-            if !created {
-                runDocker(docker, ["context", "update", "dockz", "--docker", hostArgument], completion: nil)
+            if created {
+                makeDefault()
+            } else {
+                runDocker(docker, ["context", "update", "dockz", "--docker", hostArgument]) { _ in
+                    makeDefault()
+                }
             }
         }
     }

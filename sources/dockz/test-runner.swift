@@ -18,6 +18,8 @@ enum TestRunner {
         clusterTemplates()
         snapshots()
         dockerCLIResolution()
+        buildStepMarkers()
+        shellIntegration()
 
         print("")
         if failures.isEmpty {
@@ -151,6 +153,107 @@ enum TestRunner {
             .hasPrefix("kubeadm join") == true, "k8s join capture")
         expect(MachineDistro.by(id: "alpine-3.22")?.supportedEngines == [.k3s], "alpine → k3s only")
         expect(MachineDistro.by(id: "debian-13")?.supportedEngines == [.k3s, .k8s], "debian → k3s+k8s")
+    }
+
+    /// The provision script drives the setup progress bar via console markers.
+    private static func buildStepMarkers() {
+        let first = ImageBuilderCLI.parseStepMarker(">>> DOCKZ-STEP:1/7:installing builder tools")
+        expectEqual(first?.label, "installing builder tools", "step marker label")
+        expect((first?.fraction ?? 0) > 0.25, "step 1 past the provisioning floor")
+
+        let last = ImageBuilderCLI.parseStepMarker(">>> DOCKZ-STEP:7/7:building initramfs + bootloader")
+        expect((last?.fraction ?? 0) <= 0.93, "final step stays under the install phase")
+        expect((last?.fraction ?? 0) > (first?.fraction ?? 1), "markers advance monotonically")
+
+        // A label may contain colons; only the first separates it from the counts.
+        expectEqual(ImageBuilderCLI.parseStepMarker(">>> DOCKZ-STEP:4/7:downloading a:b")?.label,
+                    "downloading a:b", "label keeps embedded colons")
+
+        // `set -x` echoes the echo itself — that line must not move the bar.
+        expect(ImageBuilderCLI.parseStepMarker("+ echo '>>> DOCKZ-STEP:1/7:x'") == nil,
+               "xtrace echo of the marker is ignored")
+        expect(ImageBuilderCLI.parseStepMarker("random kernel noise") == nil, "non-marker ignored")
+        expect(ImageBuilderCLI.parseStepMarker(">>> DOCKZ-STEP:bad") == nil, "malformed marker ignored")
+        expect(ImageBuilderCLI.parseStepMarker(">>> DOCKZ-STEP:1/0:x") == nil, "zero total ignored")
+
+        // Serial console progress lines carry ANSI escapes that must be stripped.
+        expectEqual(SerialExpect.sanitize("\u{1B}[0K(31/86) Installing containerd"),
+                    "(31/86) Installing containerd", "CSI clear-line stripped")
+        expectEqual(SerialExpect.sanitize("\u{1B}7 42% \u{1B}8done"), "42% done", "ESC 7/8 cursor codes stripped")
+        expectEqual(SerialExpect.sanitize("plain text"), "plain text", "plain text untouched")
+        expectEqual(SerialExpect.sanitize("\u{1B}[1;32mgreen\u{1B}[0m"), "green", "SGR color codes stripped")
+
+        // Full wiring: bytes through a real pipe → SerialExpect → onLine →
+        // parseStepMarker, with the exact line endings the serial console uses
+        // and a chunk boundary in the middle of a marker.
+        let pipe = Pipe()
+        var lines: [String] = []
+        let linesLock = NSLock()
+        let expecter = SerialExpect(
+            readHandle: pipe.fileHandleForReading,
+            writeHandle: pipe.fileHandleForWriting,
+            logURL: FileManager.default.temporaryDirectory
+                .appendingPathComponent("dockz-test-serial-\(getpid()).log"),
+            onLine: { line in
+                linesLock.lock(); lines.append(line); linesLock.unlock()
+            }
+        )
+        // The handler holds `self` weakly — the instance must outlive the drain.
+        withExtendedLifetime(expecter) {
+            let chunks = [
+                "+ echo '>>> DOCKZ-STEP:1/7:installing builder tools'\r\n",
+                ">>> DOCKZ-STEP:1/7:install",          // marker split across reads
+                "ing builder tools\r\n",
+                "\u{1B}[0K(31/86) Installing containerd\r",
+                "\n>>> DOCKZ-STEP:4/7:downloading Alpine base + docker (longest step)\r\n",
+            ]
+            for chunk in chunks { pipe.fileHandleForWriting.write(Data(chunk.utf8)) }
+            // readabilityHandler delivers on a background queue; give it a moment.
+            let deadline = Date().addingTimeInterval(2)
+            while Date() < deadline {
+                linesLock.lock(); let count = lines.count; linesLock.unlock()
+                if count >= 4 { break }
+                usleep(20_000)
+            }
+        }
+        linesLock.lock(); let received = lines; linesLock.unlock()
+        expectEqual(received.count, 4, "pipe wiring emits each console line once")
+        let markers = received.compactMap { ImageBuilderCLI.parseStepMarker($0) }
+        expectEqual(markers.count, 2, "both real markers parsed from the pipe stream")
+        expectEqual(markers.first?.label, "installing builder tools", "pipe marker label")
+    }
+
+    /// The zshrc block must append once, remove cleanly, and never clobber the
+    /// user's own rc content around it.
+    private static func shellIntegration() {
+        let block = ShellIntegrationInstaller.block()
+        expect(block.contains("command -v docker"),
+               "shell block defers to a system docker")
+
+        let rc = "export EDITOR=vim\nalias ll='ls -la'"
+        let added = ShellIntegrationInstaller.adding(to: rc, block: block)
+        expect(added.hasPrefix(rc), "user rc content preserved before the block")
+        expect(added.contains(ShellIntegrationInstaller.beginMarker), "block appended")
+        expectEqual(ShellIntegrationInstaller.adding(to: added, block: block), added,
+                    "second add is a no-op")
+
+        // A single trailing newline may remain — standard for rc files.
+        expectEqual(ShellIntegrationInstaller.removing(from: added), rc + "\n",
+                    "remove restores the original rc content")
+        expectEqual(ShellIntegrationInstaller.removing(from: rc), rc,
+                    "remove without a block is a no-op")
+        expectEqual(ShellIntegrationInstaller.adding(to: "", block: block), block + "\n",
+                    "empty rc gets just the block")
+
+        let zshrc = ShellIntegrationInstaller.rcFileURL(
+            shellPath: "/bin/zsh", home: URL(fileURLWithPath: "/Users/x"))
+        expectEqual(zshrc.lastPathComponent, ".zshrc", "zsh → .zshrc")
+        let bash = ShellIntegrationInstaller.rcFileURL(
+            shellPath: "/opt/homebrew/bin/bash", home: URL(fileURLWithPath: "/Users/x"))
+        expectEqual(bash.lastPathComponent, ".bash_profile", "bash → .bash_profile")
+        let fish = ShellIntegrationInstaller.rcFileURL(
+            shellPath: "/usr/local/bin/fish", home: URL(fileURLWithPath: "/Users/x"))
+        expectEqual(fish.lastPathComponent, ".profile", "other shells → .profile")
     }
 
     /// The managed CLI must only be used when the host has no docker of its own,

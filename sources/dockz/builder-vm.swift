@@ -28,7 +28,11 @@ final class BuilderVM: NSObject, VZVirtualMachineDelegate {
 
         let config = VZVirtualMachineConfiguration()
         config.cpuCount = min(4, ProcessInfo.processInfo.processorCount)
-        config.memorySize = 2 * 1024 * 1024 * 1024
+        // Netboot Alpine runs entirely from RAM (initramfs + modloop + apk cache);
+        // 2 GiB proved marginal — a busy host produced jbd2/RCU stalls in the
+        // guest during package install. 4 GiB, clamped to what VZ allows.
+        config.memorySize = min(4 * 1024 * 1024 * 1024,
+                                VZVirtualMachineConfiguration.maximumAllowedMemorySize)
         config.bootLoader = bootLoader
 
         let diskAttachment = try VZDiskImageStorageDeviceAttachment(url: disk, readOnly: false)

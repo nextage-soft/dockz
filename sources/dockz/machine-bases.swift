@@ -66,7 +66,12 @@ extension MachineManager {
                 case .netboot:
                     try ImageBuilderCLI.buildDiskImage(.init(
                         outputURL: output, sizeGB: 4, profile: "machine", publicKey: publicKey,
-                        progress: { line in DispatchQueue.main.async { self.buildOutput += line + "\n" } }
+                        progress: { update in
+                            DispatchQueue.main.async {
+                                self.buildOutput += "==> [\(Int(update.fraction * 100))%] \(update.label)\n"
+                            }
+                        },
+                        console: { line in DispatchQueue.main.async { self.buildOutput += line + "\n" } }
                     ))
                 case .cloudImage(let rawURL, _, let isQcow2):
                     try self.downloadCloudImage(from: rawURL, to: output, isQcow2: isQcow2) { line in

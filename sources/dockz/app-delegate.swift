@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var display = StatusMenuController.DisplayState()
     private let dashboardStore = DashboardStore()
     private var dashboardController: DashboardWindowController?
+    private var imageSetupController: GuestImageSetupWindowController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         try? paths.ensureBaseDirectory()
@@ -290,17 +291,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// No disk image yet (first run). Offer to build it right here — the netboot
+    /// builder needs no docker, so this works on an otherwise empty Mac.
     private func presentMissingDiskImageAlert() {
-        let alert = NSAlert()
-        alert.messageText = "Guest disk image not found"
-        alert.informativeText = """
-        DockZ needs the Alpine guest image at \(paths.diskImage.path).
-
-        Build it once with:
-        guest/build-guest-image.sh
-        (requires a running docker daemon, e.g. colima)
-        """
-        alert.alertStyle = .warning
-        alert.runModal()
+        // Already created (possibly hidden by the user mid-build): re-front it
+        // instead of doing nothing, so "Start" from the menu always shows it.
+        if let existing = imageSetupController {
+            existing.bringToFront()
+            return
+        }
+        let controller = GuestImageSetupWindowController()
+        imageSetupController = controller
+        controller.present(
+            onImageReady: { [weak self] in
+                guard let self else { return }
+                self.display.diskImageMissing = false
+                self.refreshMenu()
+                self.startVM()
+            },
+            // Only now is it safe to let the controller go — it has closed itself.
+            onDismiss: { [weak self] in self?.imageSetupController = nil }
+        )
     }
 }

@@ -39,8 +39,17 @@ enum ImageBuilderCLI {
             sizeGB: limitGB,
             profile: "docker",
             publicKey: nil,
-            progress: { print("dockz: \($0)") }
+            progress: { print("dockz: [\(Int($0.fraction * 100))%] \($0.label)") },
+            // Console output already goes to builder/build.log; echo it too when
+            // asked, so a terminal build is debuggable without tailing a file.
+            console: CommandLine.arguments.contains("--verbose") ? { print("    | \($0)") } : nil
         ))
+    }
+
+    /// A coarse but monotonic view of the build, for a determinate progress bar.
+    struct BuildProgress {
+        var fraction: Double    // 0...1
+        var label: String
     }
 
     struct BuildRequest {
@@ -48,7 +57,39 @@ enum ImageBuilderCLI {
         var sizeGB: Int
         var profile: String     // "docker" | "machine"
         var publicKey: String?
-        var progress: ((String) -> Void)?
+        var progress: ((BuildProgress) -> Void)?
+        /// Raw serial-console lines, as they arrive. The build is long and mostly
+        /// silent at the step level, so surfacing these is what tells the user it
+        /// is alive — and is the only diagnostic when it fails.
+        var console: ((String) -> Void)?
+    }
+
+    /// Host-side milestones. Provisioning inside the VM is the bulk of the work,
+    /// so it gets the widest band and is subdivided by the script's own markers.
+    private enum Phase {
+        static let fetching = 0.02
+        static let creatingDisk = 0.10
+        static let booting = 0.14
+        static let provisionStart = 0.25
+        static let provisionEnd = 0.93
+        static let installing = 0.95
+        static let done = 1.0
+    }
+
+    /// `>>> DOCKZ-STEP:<n>/<total>:<label>` emitted by provision-inside-vm.sh.
+    /// Returns the overall fraction, mapped into the provisioning band.
+    static func parseStepMarker(_ line: String) -> BuildProgress? {
+        let prefix = ">>> DOCKZ-STEP:"
+        guard line.hasPrefix(prefix) else { return nil }
+        let payload = String(line.dropFirst(prefix.count))
+        let parts = payload.split(separator: ":", maxSplits: 1).map(String.init)
+        guard parts.count == 2 else { return nil }
+        let counts = parts[0].split(separator: "/").map(String.init)
+        guard counts.count == 2, let step = Int(counts[0]), let total = Int(counts[1]), total > 0
+        else { return nil }
+        let span = Phase.provisionEnd - Phase.provisionStart
+        let fraction = Phase.provisionStart + span * (Double(step) / Double(total))
+        return BuildProgress(fraction: min(fraction, Phase.provisionEnd), label: parts[1])
     }
 
     /// Provisions a bootable Alpine disk image by driving a netboot VM over
@@ -59,23 +100,30 @@ enum ImageBuilderCLI {
         guard let guestDir = locateGuestDirectory() else {
             throw DockzError.socketSetupFailed("guest/ directory not found (looked in app Resources and current directory)")
         }
-        let progress = request.progress ?? { _ in }
+        let report = request.progress ?? { _ in }
+        let progress: (Double, String) -> Void = { report(BuildProgress(fraction: $0, label: $1)) }
 
         let builderDir = paths.baseDirectory.appendingPathComponent("builder", isDirectory: true)
         try FileManager.default.createDirectory(at: builderDir, withIntermediateDirectories: true)
-        progress("fetching Alpine \(alpineVersion) netboot kernel/initramfs…")
+        progress(Phase.fetching, "fetching Alpine \(alpineVersion) netboot kernel/initramfs…")
         let kernel = try fetchDecompressedKernel(into: builderDir)
         let initrd = try fetch("initramfs-virt", into: builderDir)
 
+        progress(Phase.creatingDisk, "creating a \(max(request.sizeGB, 4)) GB sparse disk…")
         let workDisk = request.outputURL.appendingPathExtension("building")
         try createSparseFile(at: workDisk, size: UInt64(max(request.sizeGB, 4)) * 1024 * 1024 * 1024)
 
-        progress("booting builder VM (Alpine netboot)…")
+        progress(Phase.booting, "booting builder VM (Alpine netboot)…")
         let vm = BuilderVM()
         let expect = SerialExpect(
             readHandle: vm.consoleReadHandle,
             writeHandle: vm.consoleWriteHandle,
-            logURL: builderDir.appendingPathComponent("build.log")
+            logURL: builderDir.appendingPathComponent("build.log"),
+            onLine: { line in
+                request.console?(line)
+                // The script announces its own steps; let them drive the bar.
+                if let step = parseStepMarker(line) { report(step) }
+            }
         )
         try vm.start(kernel: kernel, initrd: initrd, disk: workDisk, guestDir: guestDir)
 
@@ -83,7 +131,8 @@ enum ImageBuilderCLI {
             try expect.expect(["login:"], timeout: 240)
             expect.sendLine("root")
             try expect.expect(["# "], timeout: 30)
-            progress("provisioning \(request.profile) profile (installs Alpine onto the disk; a few minutes)…")
+            progress(Phase.provisionStart,
+                     "provisioning \(request.profile) profile (installs Alpine onto the disk; a few minutes)…")
             let home = FileManager.default.homeDirectoryForCurrentUser.path
             var environment = "SHARE_PATH=\(home) PROFILE=\(request.profile)"
             if let key = request.publicKey?.trimmingCharacters(in: .whitespacesAndNewlines), !key.isEmpty {
@@ -102,10 +151,10 @@ enum ImageBuilderCLI {
             throw DockzError.socketSetupFailed("builder VM did not power off after provisioning")
         }
 
-        progress("installing image…")
+        progress(Phase.installing, "installing image…")
         _ = try? FileManager.default.removeItem(at: request.outputURL)
         try FileManager.default.moveItem(at: workDisk, to: request.outputURL)
-        progress("image ready at \(request.outputURL.path)")
+        progress(Phase.done, "image ready at \(request.outputURL.path)")
     }
 
     // MARK: - Helpers

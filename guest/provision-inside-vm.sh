@@ -14,10 +14,16 @@ SHARE_PATH="${SHARE_PATH:?SHARE_PATH must be set}"
 PROFILE="${PROFILE:-docker}"
 PUBKEY="${PUBKEY:-}"
 
+# Progress markers for the host: the GUI parses these to drive its progress bar.
+# Keep the count in sync with the number of step calls below.
+STEP_TOTAL=7
+step() { echo ">>> DOCKZ-STEP:$1/$STEP_TOTAL:$2"; }
+
 # docker & friends live in the community repository (netboot sets up main only)
 community_repo="$(sed -n 's|/main$|/community|p' /etc/apk/repositories | head -n1)"
 grep -q "$community_repo" /etc/apk/repositories || echo "$community_repo" >> /etc/apk/repositories
 
+step 1 "installing builder tools"
 apk add sfdisk e2fsprogs dosfstools grub grub-efi
 
 # The netboot environment runs from RAM; filesystem drivers are modules.
@@ -25,6 +31,7 @@ modprobe ext4 2>/dev/null || true
 modprobe vfat 2>/dev/null || true
 
 # --- Partition the whole disk (ESP + root over the rest) ---
+step 2 "partitioning the disk"
 sfdisk /dev/vda <<EOF
 label: gpt
 start=2048, size=131072, type=uefi, name=esp
@@ -33,6 +40,7 @@ EOF
 mdev -s 2>/dev/null || true
 sleep 1
 
+step 3 "formatting filesystems"
 mkfs.vfat -F32 -n DOCKZ-ESP /dev/vda1
 mkfs.ext4 -q -L dockz-root /dev/vda2
 mount /dev/vda2 /mnt
@@ -46,12 +54,15 @@ if [ "$PROFILE" = "machine" ]; then
 else
     PROFILE_PKGS="docker docker-cli-compose"
 fi
+# The long one: pulls the whole base system + docker over the network.
+step 4 "downloading Alpine base + $PROFILE_PKGS (longest step)"
 apk --root /mnt --initdb --arch aarch64 \
     --keys-dir /etc/apk/keys --repositories-file /etc/apk/repositories \
     add $COMMON_PKGS $PROFILE_PKGS
 cp /etc/apk/repositories /mnt/etc/apk/repositories
 
 # --- Dockz configuration (same rootfs/ files as the docker-based build) ---
+step 5 "applying DockZ configuration"
 cp -R /w/rootfs/. /mnt/
 chmod +x /mnt/etc/init.d/dockz-agent /mnt/etc/init.d/dockz-resize \
     /mnt/etc/init.d/rosetta-binfmt /mnt/usr/local/bin/dockz-print-ip \
@@ -65,6 +76,7 @@ echo 'rc_sys=""' >> /mnt/etc/rc.conf
 printf 'virtio_vsock\nvirtiofs\n' >> /mnt/etc/modules
 echo 'hvc0::respawn:/sbin/getty -L hvc0 115200 vt100' >> /mnt/etc/inittab
 
+step 6 "enabling services"
 for s in devfs dmesg mdev hwdrivers; do chroot /mnt rc-update add "$s" sysinit; done
 for s in modules sysctl hostname fsck root localmount hwclock seedrng bootmisc \
          syslog networking dockz-resize; do chroot /mnt rc-update add "$s" boot; done
@@ -92,6 +104,7 @@ if [ "$PROFILE" = "machine" ]; then
 fi
 
 # --- initramfs with virtio, standalone grub EFI binary (no NVRAM needed) ---
+step 7 "building initramfs + bootloader"
 chroot /mnt mkinitfs -c /etc/mkinitfs/mkinitfs.conf -b / "$(ls /mnt/lib/modules)"
 grub-mkimage -O arm64-efi -o /tmp/BOOTAA64.EFI -p '(hd0,gpt2)/boot/grub' \
     part_gpt ext2 normal linux configfile search search_label echo ls sleep
