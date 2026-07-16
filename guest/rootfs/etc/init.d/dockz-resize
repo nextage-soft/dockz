@@ -1,0 +1,20 @@
+#!/sbin/openrc-run
+
+description="Grow the root partition and filesystem to fill the virtual disk"
+
+depend() {
+    need localmount
+    before docker
+}
+
+start() {
+    ebegin "Growing root filesystem to fill disk"
+    # The host truncates disk.img to its full size after installing the small
+    # build artifact, so the GPT backup header must be moved to the new end
+    # before partition 2 can be grown.
+    sfdisk --relocate gpt-bak-std /dev/vda 2>/dev/null || true
+    echo ", +" | sfdisk --force --no-reread -N 2 /dev/vda 2>/dev/null || true
+    partx -u /dev/vda 2>/dev/null || true
+    resize2fs /dev/vda2 2>/dev/null || true
+    eend 0
+}

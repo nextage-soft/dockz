@@ -1,7 +1,7 @@
 # ---- Swift Package Manager ----
 .build/
 .swiftpm/
-# Package.resolved IS committed (pins dependency versions for reproducible builds)
+# No external dependencies → no Package.resolved to track.
 
 # ---- Build output (app bundle, generated icon) ----
 build/

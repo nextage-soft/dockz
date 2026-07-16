@@ -1,0 +1,3 @@
+/dev/vda2        /            ext4      rw,relatime      0 1
+LABEL=DOCKZ-ESP  /boot/efi    vfat      defaults,nofail  0 2
+home             @SHARE_PATH@ virtiofs  rw,nofail        0 0

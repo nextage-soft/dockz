@@ -1,0 +1,25 @@
+#!/sbin/openrc-run
+
+description="Mount the Rosetta virtiofs share and register the binfmt handler for amd64 binaries"
+
+depend() {
+    need localmount
+    before docker
+}
+
+start() {
+    mkdir -p /media/rosetta
+    if ! mount -t virtiofs rosetta /media/rosetta 2>/dev/null; then
+        einfo "Rosetta share not present; amd64 images will not run"
+        return 0
+    fi
+    if [ ! -f /proc/sys/fs/binfmt_misc/register ]; then
+        mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc 2>/dev/null || true
+    fi
+    if [ ! -f /proc/sys/fs/binfmt_misc/rosetta ]; then
+        ebegin "Registering Rosetta binfmt handler"
+        printf '%s' ':rosetta:M::\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x3e\x00:\xff\xff\xff\xff\xff\xfe\xfe\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:/media/rosetta/rosetta:POCF' \
+            > /proc/sys/fs/binfmt_misc/register
+        eend $?
+    fi
+}

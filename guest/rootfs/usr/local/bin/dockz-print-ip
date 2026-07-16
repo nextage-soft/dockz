@@ -1,0 +1,3 @@
+#!/bin/sh
+# Reports the primary IPv4 address to the host over vsock (run by socat).
+ip -4 -o addr show dev eth0 | awk '{print $4}' | cut -d/ -f1 | head -n1

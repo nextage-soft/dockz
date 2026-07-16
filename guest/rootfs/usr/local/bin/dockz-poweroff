@@ -1,0 +1,4 @@
+#!/bin/sh
+# Graceful shutdown requested by the host (run by socat on vsock port 2377).
+echo "dockz: poweroff requested by host"
+exec /sbin/poweroff

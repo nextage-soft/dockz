@@ -1,0 +1,13 @@
+DockZ
+Copyright 2026 The DockZ Authors
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+--------------------------------------------------------------------------------
+DockZ has no external Swift dependencies. All application code is original or
+uses Apple system frameworks.
+
+Guest disk images that DockZ builds bundle separately-licensed upstream
+software (Alpine Linux, Debian, Ubuntu, Docker Engine, k3s, kubeadm, etc.).
+Those components retain their own respective licenses and are not covered by
+this Work's license.

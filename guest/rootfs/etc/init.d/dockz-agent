@@ -1,0 +1,38 @@
+#!/sbin/openrc-run
+
+description="Dockz vsock agents: docker socket proxy (2375), IP report (2376), poweroff (2377)"
+
+depend() {
+    need localmount
+    use net docker
+}
+
+start() {
+    ebegin "Starting dockz vsock agents"
+    modprobe virtio_vsock 2>/dev/null || true
+    start-stop-daemon --start --background --make-pidfile \
+        --pidfile /run/dockz-proxy.pid \
+        --exec /usr/bin/socat -- \
+        VSOCK-LISTEN:2375,reuseaddr,fork UNIX-CONNECT:/var/run/docker.sock
+    start-stop-daemon --start --background --make-pidfile \
+        --pidfile /run/dockz-ip.pid \
+        --exec /usr/bin/socat -- \
+        VSOCK-LISTEN:2376,reuseaddr,fork EXEC:/usr/local/bin/dockz-print-ip
+    start-stop-daemon --start --background --make-pidfile \
+        --pidfile /run/dockz-power.pid \
+        --exec /usr/bin/socat -- \
+        VSOCK-LISTEN:2377,reuseaddr,fork EXEC:/usr/local/bin/dockz-poweroff
+    start-stop-daemon --start --background --make-pidfile \
+        --pidfile /run/dockz-shell.pid \
+        --exec /usr/bin/socat -- \
+        VSOCK-LISTEN:2378,reuseaddr,fork EXEC:'/bin/sh -i',stderr
+    eend $?
+}
+
+stop() {
+    ebegin "Stopping dockz vsock agents"
+    for name in proxy ip power shell; do
+        start-stop-daemon --stop --pidfile "/run/dockz-$name.pid" 2>/dev/null || true
+    done
+    eend 0
+}
