@@ -55,8 +55,8 @@
   <!-- data folder -->
   <rect x="50" y="282" width="340" height="96" rx="9" class="card"/>
   <text x="66" y="306" class="label" font-weight="700">Data folder (~/.dockz, relocatable)</text>
-  <text x="66" y="326" class="sub">disk.img (sparse) · docker.sock · console.log</text>
-  <text x="66" y="344" class="sub">config.json · snapshots/ (APFS clone) · machines/</text>
+  <text x="66" y="326" class="sub">disk.img (sparse) · docker.sock · console.log · host.log</text>
+  <text x="66" y="344" class="sub">config.json · snapshots/ · machines/ · bin/ (managed CLI)</text>
   <text x="66" y="362" class="sub">virtiofs share of $HOME → fast bind mounts</text>
 
   <!-- Machines -->

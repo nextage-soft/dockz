@@ -78,9 +78,11 @@ struct DashboardRootView: View {
 
     private var headerBar: some View {
         HStack(spacing: 8) {
-            Image(systemName: "shippingbox.fill")
-                .font(.system(size: 15))
-                .foregroundStyle(.blue)
+            // The real app icon (container mark) — keeps the header in sync
+            // with the bundle icon without a second asset.
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .frame(width: 20, height: 20)
             Text("DockZ")
                 .font(.headline)
             Text("v\(AppInfo.version)")

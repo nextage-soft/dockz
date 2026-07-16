@@ -48,32 +48,75 @@ func drawIcon(canvas: CGFloat) -> NSImage {
     }
     NSGraphicsContext.current?.restoreGraphicsState()
 
-    // Shipping box symbol, white, soft shadow
-    let config = NSImage.SymbolConfiguration(pointSize: canvas * 0.46, weight: .medium)
-    if let symbol = NSImage(systemSymbolName: "shippingbox.fill", accessibilityDescription: nil)?
-        .withSymbolConfiguration(config) {
-        let tinted = NSImage(size: symbol.size)
-        tinted.lockFocus()
-        NSColor.white.set()
-        let symbolRect = NSRect(origin: .zero, size: symbol.size)
-        symbol.draw(in: symbolRect)
-        symbolRect.fill(using: .sourceAtop)
-        tinted.unlockFocus()
+    // Isometric shipping container: front face with vertical corrugation,
+    // lighter top face, shaded right side. Drawn by hand — SF Symbols has
+    // boxes, not cargo containers.
+    let w = canvas * 0.50      // front face width
+    let h = canvas * 0.33      // front face height
+    let dx = canvas * 0.095    // isometric depth (right)
+    let dy = canvas * 0.068    // isometric depth (up)
+    let fx = (canvas - w - dx) / 2
+    let fy = (canvas - h - dy) / 2 + canvas * 0.025
 
-        NSGraphicsContext.current?.saveGraphicsState()
-        let shadow = NSShadow()
-        shadow.shadowColor = NSColor.black.withAlphaComponent(0.32)
-        shadow.shadowBlurRadius = canvas * 0.03
-        shadow.shadowOffset = NSSize(width: 0, height: -canvas * 0.012)
-        shadow.set()
-        let drawRect = NSRect(
-            x: (canvas - symbol.size.width) / 2,
-            y: (canvas - symbol.size.height) / 2 + canvas * 0.02,
-            width: symbol.size.width,
-            height: symbol.size.height
-        )
-        tinted.draw(in: drawRect)
-        NSGraphicsContext.current?.restoreGraphicsState()
+    let silhouette = NSBezierPath()
+    silhouette.move(to: NSPoint(x: fx, y: fy))
+    silhouette.line(to: NSPoint(x: fx + w, y: fy))
+    silhouette.line(to: NSPoint(x: fx + w + dx, y: fy + dy))
+    silhouette.line(to: NSPoint(x: fx + w + dx, y: fy + h + dy))
+    silhouette.line(to: NSPoint(x: fx + dx, y: fy + h + dy))
+    silhouette.line(to: NSPoint(x: fx, y: fy + h))
+    silhouette.close()
+
+    // Soft drop shadow under the whole container
+    NSGraphicsContext.current?.saveGraphicsState()
+    let shadow = NSShadow()
+    shadow.shadowColor = NSColor.black.withAlphaComponent(0.32)
+    shadow.shadowBlurRadius = canvas * 0.03
+    shadow.shadowOffset = NSSize(width: 0, height: -canvas * 0.012)
+    shadow.set()
+    NSColor.white.setFill()
+    silhouette.fill()
+    NSGraphicsContext.current?.restoreGraphicsState()
+
+    // Top face (brightest)
+    let top = NSBezierPath()
+    top.move(to: NSPoint(x: fx, y: fy + h))
+    top.line(to: NSPoint(x: fx + w, y: fy + h))
+    top.line(to: NSPoint(x: fx + w + dx, y: fy + h + dy))
+    top.line(to: NSPoint(x: fx + dx, y: fy + h + dy))
+    top.close()
+    NSColor.white.setFill()
+    top.fill()
+
+    // Right side face (dimmed for depth)
+    let side = NSBezierPath()
+    side.move(to: NSPoint(x: fx + w, y: fy))
+    side.line(to: NSPoint(x: fx + w + dx, y: fy + dy))
+    side.line(to: NSPoint(x: fx + w + dx, y: fy + h + dy))
+    side.line(to: NSPoint(x: fx + w, y: fy + h))
+    side.close()
+    NSColor(calibratedRed: 0.78, green: 0.86, blue: 0.98, alpha: 1).setFill()
+    side.fill()
+
+    // Front face
+    let front = NSRect(x: fx, y: fy, width: w, height: h)
+    NSColor(calibratedRed: 0.94, green: 0.97, blue: 1.0, alpha: 1).setFill()
+    NSBezierPath(rect: front).fill()
+
+    // Corrugation: vertical grooves in the background blue
+    let grooves = 6
+    let inset = w * 0.075
+    let slotHeight = h * 0.74
+    let usable = w - 2 * inset
+    let slotWidth = usable / (CGFloat(grooves) * 1.9 - 0.9)
+    let gap = slotWidth * 0.9
+    let groove = NSColor(calibratedRed: 0.13, green: 0.38, blue: 0.82, alpha: 0.85)
+    for index in 0..<grooves {
+        let slotX = fx + inset + CGFloat(index) * (slotWidth + gap)
+        let slot = NSRect(x: slotX, y: fy + (h - slotHeight) / 2,
+                          width: slotWidth, height: slotHeight)
+        groove.setFill()
+        NSBezierPath(roundedRect: slot, xRadius: slotWidth * 0.32, yRadius: slotWidth * 0.32).fill()
     }
     return image
 }

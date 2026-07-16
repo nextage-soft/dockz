@@ -31,7 +31,7 @@ final class StatusMenuController: NSObject {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         super.init()
         if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "shippingbox.fill", accessibilityDescription: "DockZ")
+            button.image = BrandContainerIcon.statusItemImage()
         }
         rebuildMenu()
     }
