@@ -13,6 +13,20 @@ Linux machines.
 ![license](https://img.shields.io/badge/license-Apache%202.0-blue)
 ![dependencies](https://img.shields.io/badge/Swift%20dependencies-none-success)
 
+<p align="center">
+  <img src="public/architecture.svg" alt="DockZ architecture" width="880">
+</p>
+
+---
+
+## Screenshots
+
+|                       Containers                       |                    Images                    |
+| :---------------------------------------------------: | :------------------------------------------: |
+| ![Containers](public/dashboard-containers.png)        | ![Images](public/dashboard-images.png)       |
+|                    **Machines**                       |              **Settings / About**            |
+| ![Machines](public/dashboard-machines.png)            | ![Settings](public/dashboard-settings.png)   |
+
 ---
 
 ## Features
