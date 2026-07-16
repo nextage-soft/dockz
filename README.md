@@ -234,6 +234,34 @@ CI runs the same on a `macos-15` runner (`.github/workflows/ci.yml`).
 - Not yet notarized — Gatekeeper may require right-click → Open on first launch,
   or `xattr -dr com.apple.quarantine /Applications/DockZ.app`.
 
+## FAQ
+
+**Is DockZ a free Docker Desktop alternative for Mac?**
+Yes — free and Apache-2.0 licensed, with no per-seat licensing for companies.
+It runs the real Docker Engine (`dockerd`) in a lightweight Alpine Linux VM on
+Apple's Virtualization.framework.
+
+**How is DockZ different from OrbStack or Colima?**
+OrbStack is excellent but closed-source and paid for commercial use; Colima is
+free but CLI-only and installed via Homebrew. DockZ is a ~5 MB fully
+open-source native app with a GUI dashboard, needs no Homebrew and no admin
+password, and also manages general-purpose Linux VMs. See the
+[comparison](#why-dockz).
+
+**Can I run Kubernetes (k3s/k8s) on it?**
+Yes — the Machines tab creates Alpine/Debian/Ubuntu VMs with one-click k3s or
+kubeadm master/node templates; nodes share one NAT network, so multi-node
+clusters work on a single Mac.
+
+**Does `docker compose` / buildx / amd64 work?**
+Yes. The engine is upstream Docker, so compose, buildx, and private registries
+behave exactly as on Linux. `linux/amd64` images run through Rosetta.
+
+**Do I need Docker or Homebrew installed first?**
+No. First launch builds the guest image itself and downloads the official
+`docker` CLI + compose plugin, checksum-verified — a fresh Mac goes from zero
+to `docker ps` in one window.
+
 ## License
 
 DockZ is released under the [Apache License 2.0](LICENSE) — © 2026 The DockZ
