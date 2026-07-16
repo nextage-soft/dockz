@@ -1,77 +1,142 @@
-# Dockz
+# DockZ
 
-A minimal Docker Desktop alternative for Apple silicon Macs, built directly on
-Apple's Virtualization.framework. A menu bar app boots a tiny Alpine Linux VM
-running the real dockerd and exposes it to the host as a normal docker context.
+**Docker & Linux VMs on Apple Silicon, natively.**
+
+DockZ is a Docker Desktop / Colima / Multipass alternative for macOS on Apple
+Silicon, built entirely on Apple's **Virtualization.framework** — no external
+runtimes, no Swift dependencies, fully offline builds. A menu bar app boots a
+tiny Alpine Linux VM running the real `dockerd` and exposes it to the host as a
+normal Docker context, plus a Docker Desktop–style dashboard and Multipass-style
+Linux machines.
+
+![platform](https://img.shields.io/badge/platform-macOS%2015%2B%20·%20Apple%20Silicon-black)
+![license](https://img.shields.io/badge/license-Apache%202.0-blue)
+![dependencies](https://img.shields.io/badge/Swift%20dependencies-none-success)
+
+---
+
+## Features
+
+- **Real Docker engine in a VM** — genuine `dockerd` in Alpine Linux, reachable
+  as the `dockz` Docker context. `docker`, `docker compose`, buildx all work.
+- **Management dashboard** (Docker Desktop / Portainer style) — containers,
+  images, volumes, networks, registries, and compose **stacks**, with full
+  create/edit forms, live logs, stats, and inspect.
+- **Multipass-style machines** — spin up full Linux VMs (Alpine / Debian /
+  Ubuntu, ARM64) with optional **k3s / k8s** cluster templates (master/node
+  roles), reachable over SSH.
+- **TCP + UDP port forwarding** — published container ports are mirrored on
+  `localhost` automatically by watching the Docker events API.
+- **VM snapshots** — instant APFS copy-on-write snapshots of the VM disk you can
+  roll back to.
+- **Rosetta** — run `linux/amd64` images on Apple Silicon.
+- **Configurable** — CPUs, memory, disk limit, `$HOME` virtiofs share, and a
+  relocatable data folder (put large disks on an external SSD).
+- **Zero external dependencies** — only Apple frameworks and in-repo code.
+  Interactive shells (SSH, `docker exec`) open in the system Terminal.app.
+
+## Requirements
+
+- macOS **15 (Sequoia) or later**
+- **Apple Silicon** (M1 or newer)
+- Command Line Tools or Xcode (to build from source)
+
+## Install / Build
+
+No full Xcode required — DockZ builds with Swift Package Manager and a bundling
+script.
+
+```bash
+# 1. Build + sign the host app  →  build/DockZ.app
+scripts/build-and-bundle-app.sh
+
+# 2. Build the guest disk image — pick one:
+#    a) Standalone (no Docker needed anywhere): boots an Alpine netboot VM and
+#       provisions the disk over the serial console.
+build/DockZ.app/Contents/MacOS/DockZ build-image
+#    b) With any working Docker daemon already available:
+guest/build-guest-image.sh            # installs <data folder>/disk.img
+
+# 3. Run
+open build/DockZ.app
+```
+
+Copy `build/DockZ.app` into `/Applications` to install.
+
+## Usage
+
+```bash
+docker context use dockz            # or: docker --context dockz …
+docker run --rm hello-world
+docker run --rm -p 8080:80 nginx    # reachable at http://localhost:8080
+```
+
+Open the dashboard from the menu bar icon (**Open Dashboard…**, ⌘D) to manage
+containers, images, volumes, networks, registries, stacks, and machines, and to
+adjust VM resources, snapshots, and the data folder in **Settings**.
 
 ## Architecture
 
 - **Host app (Swift, menu bar)** — `sources/dockz/`
-  - VZ VM: EFI boot → virtio-blk disk, NAT network, virtiofs share of `$HOME`
-    at the same path (fast bind mounts), vsock, Rosetta directory share
-    (amd64 images), balloon + entropy, serial console → `~/.dockz/console.log`.
-  - `~/.dockz/docker.sock` — every client connection is bridged over vsock
-    port 2375 to dockerd's unix socket in the guest.
+  - VZ VM: EFI boot → virtio-blk disk, NAT network, virtiofs share of `$HOME` at
+    the same path (fast bind mounts), vsock, Rosetta directory share, memory
+    balloon + entropy, serial console → `console.log`.
+  - `docker.sock` — each client connection is bridged over vsock port 2375 to
+    `dockerd`'s unix socket in the guest.
   - Port forwarding — subscribes to the Docker `/events` API, lists published
-    ports and mirrors them on `localhost` (TCP), relaying to the guest IP.
-  - Creates the `dockz` docker CLI context automatically.
+    TCP/UDP ports, and mirrors them on `localhost`, relaying to the guest IP.
+  - Machines — cloud-init (NoCloud) seed ISOs for cloud images; APFS clone for
+    instant creation; DHCP-lease parsing for machine IPs.
 - **Guest (Alpine)** — `guest/`
-  - `linux-virt` kernel, grub arm64-efi (standalone image, `--removable` layout),
-    openrc, dockerd + compose plugin.
-  - Agents are just socat: vsock 2375 → `/var/run/docker.sock`, 2376 → report
-    eth0 IP, 2377 → graceful poweroff.
-  - First boot grows the root partition to fill the (sparse) 64G disk.
+  - `linux-virt` kernel, grub arm64-efi (standalone, `--removable`), OpenRC,
+    `dockerd` + compose plugin.
+  - Agents are just `socat`: vsock 2375 → `/var/run/docker.sock`, 2376 → report
+    `eth0` IP, 2377 → graceful poweroff, 2378 → debug shell.
+  - First boot grows the root partition to fill the (sparse) disk.
   - Rosetta binfmt registration when the host shares the `rosetta` tag.
 
-## Build
+## Data files
+
+Everything lives under the data folder (default `~/.dockz/`, relocatable in
+Settings):
+
+| File / dir     | Purpose                                                        |
+| -------------- | -------------------------------------------------------------- |
+| `disk.img`     | VM disk (sparse; grows up to the configured disk limit)        |
+| `docker.sock`  | Host-side Docker socket (bridged to the guest over vsock)      |
+| `console.log`  | Guest serial console — first stop for boot debugging           |
+| `config.json`  | cpus, memoryGiB, diskLimitGB, shareHomeDirectory, enableRosetta |
+| `snapshots/`   | VM disk snapshots + `index.json`                               |
+| `machines/`    | Multipass-style Linux machines                                 |
+
+## Testing
+
+The Command Line Tools don't ship XCTest, so tests run as an in-process
+subcommand of the app binary:
 
 ```bash
-# 1. Host app (SPM, no Xcode needed)
-scripts/build-and-bundle-app.sh       # builds + signs build/Dockz.app
-
-# 2. Guest disk image — pick one:
-#    a) Standalone (no Docker anywhere): boots an Alpine netboot VM with
-#       Virtualization.framework and provisions the disk over serial.
-build/Dockz.app/Contents/MacOS/Dockz build-image
-#    b) With any working docker daemon (dockz itself works once installed):
-guest/build-guest-image.sh            # installs ~/.dockz/disk.img
-
-# 3. Run
-open build/Dockz.app
+swift run -c release DockzApp test    # exits non-zero on failure
 ```
 
-## Use
-
-```bash
-docker context use dockz    # or: docker --context dockz …
-docker run --rm hello-world
-docker run --rm -p 8080:80 nginx   # reachable at localhost:8080
-```
-
-Files live in `~/.dockz/`: `disk.img` (VM disk, sparse 64G), `docker.sock`,
-`console.log` (guest serial console — first stop for boot debugging),
-`config.json` (cpus, memoryGiB, shareHomeDirectory, enableRosetta).
+CI runs the same on a `macos-15` runner (`.github/workflows/ci.yml`).
 
 ## Notes
 
 - The app must be signed with the `com.apple.security.virtualization`
-  entitlement or the VM will not start (`scripts/build-and-bundle-app.sh` does
-  this with the local Apple Development certificate).
-- Rebuilding the guest image wipes docker data (`--force` guard).
-- UDP port forwarding is not implemented (TCP only).
+  entitlement or the VM won't start — `scripts/build-and-bundle-app.sh` handles
+  this (Apple Development certificate, or ad-hoc as a fallback).
+- Rebuilding the guest image wipes Docker data (`--force` guard).
+- Not yet notarized — Gatekeeper may require right-click → Open on first launch,
+  or `xattr -dr com.apple.quarantine /Applications/DockZ.app`.
 
 ## License
 
-DockZ is released under the [Apache License 2.0](LICENSE) — © 2026 The DockZ Authors.
-See [NOTICE](NOTICE) for attribution and third-party components.
+DockZ is released under the [Apache License 2.0](LICENSE) — © 2026 The DockZ
+Authors. See [NOTICE](NOTICE) for attribution.
 
 Apache 2.0 was chosen for its explicit patent grant (protecting the project and
 its users) and its "state changes" requirement on modified files.
 
-DockZ has **no external Swift dependencies** — everything is Apple frameworks
-or written in-repo, so builds are fully offline. Interactive shells (SSH into
-machines, `docker exec`) open in the system Terminal.app.
-
 The guest images DockZ builds bundle their own separately-licensed software
-(Alpine Linux, Debian, Ubuntu, Docker, k3s, etc.); those retain their
-respective upstream licenses.
+(Alpine Linux, Debian, Ubuntu, Docker, k3s, etc.); those retain their respective
+upstream licenses.
