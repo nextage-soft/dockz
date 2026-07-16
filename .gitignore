@@ -1,0 +1,39 @@
+# ---- Swift Package Manager ----
+.build/
+.swiftpm/
+# Package.resolved IS committed (pins dependency versions for reproducible builds)
+
+# ---- Build output (app bundle, generated icon) ----
+build/
+
+# ---- Guest image build artifacts ----
+guest/work/
+*.img
+*.img.gz
+*.img.building
+rootfs.tar
+
+# ---- Xcode (if ever opened in Xcode) ----
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+DerivedData/
+*.xcuserstate
+
+# ---- macOS ----
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+
+# ---- Editors ----
+.vscode/
+.idea/
+*.swp
+*~
+
+# ---- Secrets / local ----
+# Never commit signing material or private keys
+*.p12
+*.cer
+*.mobileprovision
+*.entitlements.local
