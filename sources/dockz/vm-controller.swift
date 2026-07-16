@@ -27,6 +27,7 @@ final class VMController: NSObject, VZVirtualMachineDelegate {
     private(set) var state: VMState = .stopped {
         didSet {
             let newState = state
+            HostLog.write("vm state → \(newState)")
             DispatchQueue.main.async { self.onStateChange?(newState) }
         }
     }
@@ -62,21 +63,37 @@ final class VMController: NSObject, VZVirtualMachineDelegate {
     /// Asks the guest to power off (vsock agent + platform stop request) and
     /// force-stops if it does not comply within 15 seconds.
     func stop(completion: (() -> Void)? = nil) {
+        HostLog.write("stop requested")
         queue.async {
             guard let vm = self.virtualMachine, vm.state == .running else {
+                HostLog.write("stop: VM not running (vzState: \(self.virtualMachine?.state.rawValue ?? -1)) — force stopping")
                 self.forceStop(completion: completion)
                 return
             }
             self.stopCompletion = completion
             self.state = .stopping
+            // Graceful path: connecting to the guest's poweroff port makes its
+            // socat agent run /sbin/poweroff; guestDidStop then fires. Hold the
+            // connection open for a beat — closing it the instant the handshake
+            // completes can tear down the guest side before socat has forked
+            // and exec'd the poweroff helper. (No requestStop here: a Linux
+            // guest has no channel for it, so it only muddies the water.)
             if let device = vm.socketDevices.first as? VZVirtioSocketDevice {
                 device.connect(toPort: Self.powerOffVsockPort) { result in
-                    if case .success(let connection) = result { connection.close() }
+                    switch result {
+                    case .success(let connection):
+                        HostLog.write("poweroff: vsock \(Self.powerOffVsockPort) connected, awaiting guest shutdown")
+                        self.queue.asyncAfter(deadline: .now() + 2) { connection.close() }
+                    case .failure(let error):
+                        HostLog.write("poweroff: vsock connect failed (\(error)) — will force stop")
+                    }
                 }
             }
-            try? vm.requestStop()
             self.queue.asyncAfter(deadline: .now() + 15) {
-                if self.virtualMachine != nil { self.forceStop(completion: nil) }
+                if self.virtualMachine != nil {
+                    HostLog.write("graceful shutdown timed out after 15s — force stopping")
+                    self.forceStop(completion: nil)
+                }
             }
         }
     }
@@ -91,7 +108,8 @@ final class VMController: NSObject, VZVirtualMachineDelegate {
             fireStopCompletion()
             return
         }
-        vm.stop { _ in
+        vm.stop { error in
+            if let error { HostLog.write("force stop error: \(error)") }
             self.virtualMachine = nil
             self.state = .stopped
             self.fireStopCompletion()
@@ -132,14 +150,22 @@ final class VMController: NSObject, VZVirtualMachineDelegate {
     // MARK: - VZVirtualMachineDelegate (called on our queue)
 
     func guestDidStop(_ virtualMachine: VZVirtualMachine) {
+        HostLog.write("guestDidStop (guest powered itself off)")
         self.virtualMachine = nil
         state = .stopped
         fireStopCompletion()
     }
 
     func virtualMachine(_ virtualMachine: VZVirtualMachine, didStopWithError error: Error) {
+        HostLog.write("didStopWithError: \(error)")
         self.virtualMachine = nil
         state = .failed(error.localizedDescription)
         fireStopCompletion()
+    }
+
+    func virtualMachine(_ virtualMachine: VZVirtualMachine,
+                        networkDevice: VZNetworkDevice,
+                        attachmentWasDisconnectedWithError error: Error) {
+        HostLog.write("network attachment disconnected: \(error)")
     }
 }
