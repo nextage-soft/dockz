@@ -1,0 +1,718 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DockZ — Docker & Linux VMs on Apple Silicon, natively</title>
+  <meta name="description" content="DockZ is a ~5MB macOS menu bar app that runs the real dockerd in a tiny Alpine VM on Apple Silicon. Docker Desktop + Multipass in one, Apache 2.0, zero dependencies." />
+  <link rel="icon" type="image/png" href="assets/logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0a0d12;
+      --bg-2: #0f131a;
+      --bg-3: #151a23;
+      --border: #1f2530;
+      --border-2: #2a3140;
+      --text: #e6edf3;
+      --text-dim: #9aa4b2;
+      --text-mute: #6b7280;
+      --accent: #58a6ff;
+      --accent-2: #1f6feb;
+      --accent-glow: rgba(88, 166, 255, 0.15);
+      --green: #3fb950;
+      --orange: #f0883e;
+      --purple: #a371f7;
+      --pink: #f778ba;
+      --gradient: linear-gradient(135deg, #58a6ff 0%, #a371f7 50%, #f778ba 100%);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+    code, pre, .mono { font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* Background ambient */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -20%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 1200px;
+      height: 800px;
+      background: radial-gradient(ellipse at center, rgba(88, 166, 255, 0.08) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 0 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Top nav */
+    nav {
+      padding: 20px 0;
+      position: sticky;
+      top: 0;
+      background: rgba(10, 13, 18, 0.75);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      border-bottom: 1px solid var(--border);
+      z-index: 100;
+    }
+    .nav-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 18px;
+      color: var(--text);
+    }
+    .brand img { width: 28px; height: 28px; }
+    .nav-links { display: flex; gap: 28px; align-items: center; }
+    .nav-links a { color: var(--text-dim); font-size: 14px; font-weight: 500; }
+    .nav-links a:hover { color: var(--text); text-decoration: none; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.15s ease;
+      border: 1px solid transparent;
+      cursor: pointer;
+    }
+    .btn-primary {
+      background: var(--text);
+      color: var(--bg);
+    }
+    .btn-primary:hover { background: #fff; text-decoration: none; transform: translateY(-1px); }
+    .btn-ghost {
+      background: transparent;
+      color: var(--text);
+      border-color: var(--border-2);
+    }
+    .btn-ghost:hover { background: var(--bg-3); text-decoration: none; }
+
+    /* Hero */
+    .hero {
+      padding: 100px 0 80px;
+      text-align: center;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: var(--bg-3);
+      border: 1px solid var(--border-2);
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 28px;
+    }
+    .hero-badge .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+    }
+    h1 {
+      font-size: clamp(40px, 7vw, 76px);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.05;
+      margin-bottom: 24px;
+    }
+    h1 .gradient {
+      background: var(--gradient);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero-sub {
+      font-size: clamp(16px, 2vw, 20px);
+      color: var(--text-dim);
+      max-width: 680px;
+      margin: 0 auto 40px;
+    }
+    .hero-cta {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 56px;
+    }
+
+    /* Hero stats */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+    .stat {
+      background: var(--bg-2);
+      padding: 22px 16px;
+      text-align: center;
+    }
+    .stat-value {
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.02em;
+    }
+    .stat-label {
+      font-size: 12px;
+      color: var(--text-mute);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-top: 4px;
+    }
+
+    /* Section */
+    section { padding: 80px 0; }
+    .section-head {
+      text-align: center;
+      max-width: 720px;
+      margin: 0 auto 56px;
+    }
+    .section-eyebrow {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 12px;
+    }
+    h2 {
+      font-size: clamp(28px, 4vw, 42px);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 16px;
+    }
+    .section-sub {
+      color: var(--text-dim);
+      font-size: 17px;
+    }
+
+    /* Screenshots grid */
+    .shots {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+    }
+    .shot {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      transition: all 0.2s ease;
+    }
+    .shot:hover {
+      border-color: var(--border-2);
+      transform: translateY(-2px);
+    }
+    .shot-frame {
+      aspect-ratio: 16 / 10;
+      overflow: hidden;
+      background: #000;
+    }
+    .shot-frame img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: top;
+      display: block;
+    }
+    .shot-caption {
+      padding: 16px 20px;
+      font-size: 14px;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .shot-caption strong { color: var(--text); font-weight: 600; }
+
+    /* Architecture */
+    .arch-wrap {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      overflow: hidden;
+    }
+    .arch-wrap img { width: 100%; height: auto; display: block; }
+
+    /* Features */
+    .features {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .feature {
+      background: var(--bg-2);
+      padding: 28px;
+    }
+    .feature-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: var(--bg-3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      margin-bottom: 16px;
+    }
+    .feature h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      letter-spacing: -0.01em;
+    }
+    .feature p {
+      font-size: 14px;
+      color: var(--text-dim);
+      line-height: 1.55;
+    }
+
+    /* Install / Code */
+    .install {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+    .install-card {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+    }
+    .install-card h3 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .install-card .hint {
+      font-size: 13px;
+      color: var(--text-mute);
+      margin-bottom: 16px;
+    }
+    .code-block {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 18px;
+      overflow-x: auto;
+      font-size: 13.5px;
+      line-height: 1.6;
+      position: relative;
+      white-space: pre;
+    }
+    .code-block .c-comment { color: var(--text-mute); }
+    .code-block .c-cmd { color: var(--text); }
+    .code-block .c-str { color: #a5d6ff; }
+    .code-block .c-key { color: var(--purple); }
+    .code-block .c-flag { color: var(--orange); }
+
+    /* Compare table */
+    .compare {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    .compare table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    .compare th, .compare td {
+      padding: 14px 20px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .compare tr:last-child th,
+    .compare tr:last-child td { border-bottom: none; }
+    .compare th {
+      background: var(--bg-3);
+      font-weight: 600;
+      color: var(--text);
+      font-size: 13px;
+    }
+    .compare td { color: var(--text-dim); }
+    .compare td.us {
+      color: var(--text);
+      font-weight: 600;
+      background: rgba(88, 166, 255, 0.04);
+    }
+    .compare .check { color: var(--green); }
+    .compare .cross { color: var(--text-mute); }
+
+    /* CTA */
+    .cta {
+      text-align: center;
+      padding: 80px 24px;
+      background: linear-gradient(180deg, transparent 0%, rgba(88, 166, 255, 0.04) 100%);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .cta h2 { margin-bottom: 12px; }
+    .cta p { color: var(--text-dim); margin-bottom: 32px; max-width: 540px; margin-left: auto; margin-right: auto; }
+    .cta-buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+    /* Footer */
+    footer {
+      padding: 40px 0;
+      color: var(--text-mute);
+      font-size: 13px;
+      text-align: center;
+    }
+    footer a { color: var(--text-dim); }
+    footer .links { display: flex; gap: 20px; justify-content: center; margin-bottom: 12px; }
+
+    /* Responsive */
+    @media (max-width: 820px) {
+      .features { grid-template-columns: repeat(2, 1fr); }
+      .install { grid-template-columns: 1fr; }
+      .stats { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 560px) {
+      .nav-links a:not(.btn) { display: none; }
+      .shots { grid-template-columns: 1fr; }
+      .features { grid-template-columns: 1fr; }
+      .compare { font-size: 12px; }
+      .compare th, .compare td { padding: 10px 12px; }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="container nav-inner">
+      <a href="#" class="brand">
+        <img src="assets/logo.png" alt="DockZ" />
+        <span>DockZ</span>
+      </a>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#screenshots">Screenshots</a>
+        <a href="#install">Install</a>
+        <a href="https://github.com/nextage-soft/dockz" target="_blank" rel="noopener" class="btn btn-ghost">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.4 3-.405 1.02.005 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+          GitHub
+        </a>
+        <a href="#install" class="btn btn-primary">Download</a>
+      </div>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <div class="container">
+      <div class="hero-badge">
+        <span class="dot"></span>
+        Apache 2.0 · macOS 15+ · Apple Silicon
+      </div>
+      <h1>
+        Docker &amp; Linux VMs<br />
+        on <span class="gradient">Apple Silicon</span>, natively.
+      </h1>
+      <p class="hero-sub">
+        DockZ is a ~5MB menu bar app that runs the real <code class="mono">dockerd</code> in a tiny Alpine VM — with a Docker Desktop&ndash;style dashboard and Multipass&ndash;style Linux machines. One app replaces the whole stack.
+      </p>
+      <div class="hero-cta">
+        <a href="#install" class="btn btn-primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          Download DockZ.app
+        </a>
+        <a href="https://github.com/nextage-soft/dockz" target="_blank" rel="noopener" class="btn btn-ghost">
+          View source &rarr;
+        </a>
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-value">~5 MB</div>
+          <div class="stat-label">App size</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">0</div>
+          <div class="stat-label">Swift deps</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">100%</div>
+          <div class="stat-label">Real dockerd</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">Free</div>
+          <div class="stat-label">Apache 2.0</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <section id="screenshots">
+    <div class="container">
+      <div class="section-head">
+        <div class="section-eyebrow">Screenshots</div>
+        <h2>A native dashboard, not Electron</h2>
+        <p class="section-sub">Pure SwiftUI on Apple's Virtualization.framework. Manage containers, images, volumes, networks, registries, compose stacks, and Linux machines — all in one window.</p>
+      </div>
+      <div class="shots">
+        <div class="shot">
+          <div class="shot-frame"><img src="assets/dashboard-containers.png" alt="Containers" /></div>
+          <div class="shot-caption"><strong>Containers</strong> &middot; live logs, stats, inspect, exec</div>
+        </div>
+        <div class="shot">
+          <div class="shot-frame"><img src="assets/dashboard-images.png" alt="Images" /></div>
+          <div class="shot-caption"><strong>Images</strong> &middot; pull / push, registry credentials in Keychain</div>
+        </div>
+        <div class="shot">
+          <div class="shot-frame"><img src="assets/dashboard-machines.png" alt="Machines" /></div>
+          <div class="shot-caption"><strong>Machines</strong> &middot; Alpine / Debian / Ubuntu, one-click k3s / k8s clusters</div>
+        </div>
+        <div class="shot">
+          <div class="shot-frame"><img src="assets/dashboard-settings.png" alt="Settings" /></div>
+          <div class="shot-caption"><strong>Settings</strong> &middot; CPU / RAM / disk, snapshots, move data to external SSD</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <div class="container">
+      <div class="section-head">
+        <div class="section-eyebrow">Architecture</div>
+        <h2>One Alpine VM, one <code class="mono">vsock</code>, nothing more</h2>
+        <p class="section-sub">The Docker socket is bridged over vsock. Published ports are mirrored to <code class="mono">localhost</code> automatically. <code class="mono">$HOME</code> is shared via virtiofs for instant bind mounts.</p>
+      </div>
+      <div class="arch-wrap">
+        <img src="assets/architecture.svg" alt="DockZ architecture diagram" />
+      </div>
+    </div>
+  </section>
+
+  <section id="features">
+    <div class="container">
+      <div class="section-head">
+        <div class="section-eyebrow">Features</div>
+        <h2>Everything you need, nothing you don't</h2>
+      </div>
+      <div class="features">
+        <div class="feature">
+          <div class="feature-icon">🐳</div>
+          <h3>Real Docker engine</h3>
+          <p>Upstream <code class="mono">dockerd</code> in Alpine. <code class="mono">docker</code>, <code class="mono">docker compose</code>, and buildx all work — via the <code class="mono">dockz</code> context.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">🖥️</div>
+          <h3>Native dashboard</h3>
+          <p>Containers, images, volumes, networks, registries, compose stacks. Create / edit forms, live logs, stats, inspect — like Docker Desktop, but it's SwiftUI.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">📦</div>
+          <h3>Linux machines</h3>
+          <p>Alpine / Debian / Ubuntu VMs (ARM64) over SSH. One-click k3s / k8s master + node cluster templates. Multipass-style, sharing one NAT network.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">🚀</div>
+          <h3>One-window onboarding</h3>
+          <p>First launch builds the guest image in a throwaway netboot VM and fetches the CLI in parallel. When the window closes, <code class="mono">docker ps</code> just works.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">🔌</div>
+          <h3>Auto port forwarding</h3>
+          <p>Published TCP and UDP ports are mirrored to <code class="mono">localhost</code> automatically via the Docker events API. Zero config.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">📸</div>
+          <h3>VM snapshots</h3>
+          <p>Instant APFS copy-on-write snapshots of the VM disk, with rollback. Rosetta for running <code class="mono">linux/amd64</code> images on ARM.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">⚙️</div>
+          <h3>Configurable</h3>
+          <p>CPUs, RAM, disk limit, virtiofs <code class="mono">$HOME</code> share, relocatable data folder (move everything to an external SSD).</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">🧰</div>
+          <h3>Docker CLI on demand</h3>
+          <p>No Homebrew required. Fetches the official static <code class="mono">docker</code> + compose binaries, checksum-verified, wired into your terminal via a removable <code class="mono">~/.zshrc</code> block.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">🪶</div>
+          <h3>Zero dependencies</h3>
+          <p>Only Apple frameworks and the code in this repo. Builds offline with just the Command Line Tools. Auditable in a single sitting.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="container">
+      <div class="section-head">
+        <div class="section-eyebrow">Comparison</div>
+        <h2>One 5 MB app replaces the whole stack</h2>
+        <p class="section-sub">No accounts, no telemetry, no background updater. Sit down and read the whole codebase in one go.</p>
+      </div>
+      <div class="compare">
+        <table>
+          <thead>
+            <tr>
+              <th></th>
+              <th class="us">DockZ</th>
+              <th>Docker Desktop</th>
+              <th>OrbStack</th>
+              <th>Colima</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>💾 App size</td>
+              <td class="us">~5 MB</td>
+              <td>~1.5 GB+</td>
+              <td>several hundred MB</td>
+              <td>CLI + brew deps</td>
+            </tr>
+            <tr>
+              <td>💵 License</td>
+              <td class="us">Apache 2.0, free</td>
+              <td>Paid &ge; 250 staff</td>
+              <td>Closed-source, paid</td>
+              <td>MIT, free</td>
+            </tr>
+            <tr>
+              <td>🐳 Docker engine</td>
+              <td class="us"><span class="check">✓</span> real</td>
+              <td><span class="check">✓</span></td>
+              <td><span class="check">✓</span></td>
+              <td><span class="check">✓</span></td>
+            </tr>
+            <tr>
+              <td>🖥️ Linux VMs</td>
+              <td class="us"><span class="check">✓</span> Alpine / Debian / Ubuntu</td>
+              <td><span class="cross">—</span></td>
+              <td><span class="cross">—</span></td>
+              <td><span class="cross">—</span></td>
+            </tr>
+            <tr>
+              <td>⚡ Native (no Electron)</td>
+              <td class="us"><span class="check">✓</span> Swift / SwiftUI</td>
+              <td><span class="cross">—</span> Electron</td>
+              <td><span class="cross">—</span></td>
+              <td><span class="cross">—</span> CLI</td>
+            </tr>
+            <tr>
+              <td>🔌 Auto port forward</td>
+              <td class="us"><span class="check">✓</span> TCP + UDP</td>
+              <td><span class="check">✓</span></td>
+              <td><span class="check">✓</span></td>
+              <td>Manual</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="install">
+    <div class="container">
+      <div class="section-head">
+        <div class="section-eyebrow">Install</div>
+        <h2>Build it in one command</h2>
+        <p class="section-sub">All you need is macOS 15+, Apple Silicon, and the Command Line Tools. No Homebrew, no admin password.</p>
+      </div>
+      <div class="install">
+        <div class="install-card">
+          <h3>1. Build &amp; bundle</h3>
+          <p class="hint">Auto-signs with an Apple Development cert if found, otherwise ad-hoc.</p>
+          <div class="code-block"><span class="c-cmd">git clone https://github.com/nextage-soft/dockz.git</span>
+<span class="c-cmd">cd dockz</span>
+<span class="c-cmd">scripts/build-and-bundle-app.sh</span></div>
+        </div>
+        <div class="install-card">
+          <h3>2. Re-sign &amp; open</h3>
+          <p class="hint">Required for the <code class="mono">com.apple.security.virtualization</code> entitlement.</p>
+          <div class="code-block"><span class="c-cmd">xattr</span> <span class="c-flag">-dr</span> com.apple.quarantine build/DockZ.app
+<span class="c-cmd">codesign</span> <span class="c-flag">--force --deep --options runtime</span> \
+  <span class="c-flag">--entitlements</span> scripts/dockz.entitlements \
+  <span class="c-flag">--sign</span> - build/DockZ.app
+<span class="c-cmd">open</span> build/DockZ.app</div>
+        </div>
+        <div class="install-card">
+          <h3>3. Use docker as usual</h3>
+          <p class="hint">DockZ grabs the CLI and sets the <code class="mono">dockz</code> context for you.</p>
+          <div class="code-block"><span class="c-cmd">docker run --rm hello-world</span>
+<span class="c-cmd">docker run --rm -p 8080:80 nginx</span>
+<span class="c-comment"># open http://localhost:8080 — it just works</span></div>
+        </div>
+        <div class="install-card">
+          <h3>4. (Optional) Linux machines</h3>
+          <p class="hint">Spin up an Ubuntu VM and SSH straight from Terminal.</p>
+          <div class="code-block"><span class="c-comment"># In the dashboard: Machines → New → Ubuntu 24.04</span>
+<span class="c-cmd">ssh ubuntu@&lt;ip&gt;</span>
+<span class="c-cmd">docker context use dockz</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta">
+    <div class="container">
+      <h2>Ready to ditch Docker Desktop?</h2>
+      <p>Clone, build in a few minutes, uninstall Docker Desktop, and forget Electron ever happened. DockZ runs native, sips RAM, and phones home to nobody.</p>
+      <div class="cta-buttons">
+        <a href="https://github.com/nextage-soft/dockz" target="_blank" rel="noopener" class="btn btn-primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.4 3-.405 1.02.005 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+          Open GitHub repo
+        </a>
+        <a href="#install" class="btn btn-ghost">Read the build guide</a>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="container">
+      <div class="links">
+        <a href="https://github.com/nextage-soft/dockz" target="_blank" rel="noopener">GitHub</a>
+        <a href="#features">Features</a>
+        <a href="#install">Install</a>
+        <a href="#architecture">Architecture</a>
+      </div>
+      <div>&copy; 2026 DockZ &middot; Apache License 2.0 &middot; Made with care for Apple Silicon.</div>
+    </div>
+  </footer>
+</body>
+</html>

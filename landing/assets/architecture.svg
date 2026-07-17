@@ -1,0 +1,119 @@
+<svg width="920" height="560" viewBox="0 0 920 560" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <style>
+    .card   { fill: #ffffff; stroke: #d0d7de; stroke-width: 1.5; }
+    .host   { fill: #f6f8fa; stroke: #d0d7de; stroke-width: 1.5; }
+    .guest  { fill: #eef6ff; stroke: #b6d4fe; stroke-width: 1.5; }
+    .title  { font-size: 15px; font-weight: 700; fill: #1f2328; }
+    .zone   { font-size: 13px; font-weight: 700; fill: #57606a; letter-spacing: .04em; }
+    .label  { font-size: 12.5px; fill: #1f2328; }
+    .sub    { font-size: 11px; fill: #57606a; }
+    .pill   { font-size: 11px; font-weight: 600; fill: #0969da; }
+    .edge   { stroke: #6e7781; stroke-width: 1.6; fill: none; }
+    .edgep  { stroke: #0969da; stroke-width: 1.8; fill: none; }
+    .edget  { font-size: 10.5px; fill: #57606a; }
+    @media (prefers-color-scheme: dark) {
+      .card  { fill: #161b22; stroke: #30363d; }
+      .host  { fill: #0d1117; stroke: #30363d; }
+      .guest { fill: #0d1f33; stroke: #1f4b78; }
+      .title { fill: #e6edf3; } .zone { fill: #8b949e; }
+      .label { fill: #e6edf3; } .sub { fill: #8b949e; }
+      .pill  { fill: #58a6ff; } .edge { stroke: #8b949e; }
+      .edgep { stroke: #58a6ff; } .edget { fill: #8b949e; }
+    }
+    .bg { fill: #ffffff; }
+    @media (prefers-color-scheme: dark) { .bg { fill: #0d1117; } }
+  </style>
+
+  <rect class="bg" x="0" y="0" width="920" height="560"/>
+
+  <!-- Title -->
+  <text x="30" y="34" class="title">DockZ — architecture</text>
+  <text x="30" y="52" class="sub">Docker &amp; Linux VMs on Apple Silicon, on Apple's Virtualization.framework</text>
+
+  <!-- ===== HOST (macOS) ===== -->
+  <rect x="30" y="72" width="380" height="452" rx="12" class="host"/>
+  <text x="50" y="98" class="zone">macOS HOST · Apple Silicon</text>
+
+  <!-- Menu bar app -->
+  <rect x="50" y="112" width="340" height="72" rx="9" class="card"/>
+  <text x="66" y="136" class="label" font-weight="700">DockZ.app (Swift, menu bar)</text>
+  <text x="66" y="155" class="sub">Dashboard · Machines · Settings · port forwarder</text>
+  <text x="66" y="172" class="sub">Zero external Swift dependencies</text>
+
+  <!-- docker CLI -->
+  <rect x="50" y="200" width="164" height="66" rx="9" class="card"/>
+  <text x="66" y="224" class="label" font-weight="700">docker / compose</text>
+  <text x="66" y="242" class="sub">context "dockz"</text>
+  <text x="66" y="258" class="pill">→ docker.sock</text>
+
+  <!-- localhost ports -->
+  <rect x="226" y="200" width="164" height="66" rx="9" class="card"/>
+  <text x="242" y="224" class="label" font-weight="700">localhost ports</text>
+  <text x="242" y="242" class="sub">published TCP + UDP</text>
+  <text x="242" y="258" class="pill">e.g. :8080 → nginx</text>
+
+  <!-- data folder -->
+  <rect x="50" y="282" width="340" height="96" rx="9" class="card"/>
+  <text x="66" y="306" class="label" font-weight="700">Data folder (~/.dockz, relocatable)</text>
+  <text x="66" y="326" class="sub">disk.img (sparse) · docker.sock · console.log · host.log</text>
+  <text x="66" y="344" class="sub">config.json · snapshots/ · machines/ · bin/ (managed CLI)</text>
+  <text x="66" y="362" class="sub">virtiofs share of $HOME → fast bind mounts</text>
+
+  <!-- Machines -->
+  <rect x="50" y="394" width="340" height="110" rx="9" class="card"/>
+  <text x="66" y="418" class="label" font-weight="700">Machines (Multipass-style VMs)</text>
+  <text x="66" y="438" class="sub">Alpine · Debian · Ubuntu (ARM64)</text>
+  <text x="66" y="456" class="sub">optional k3s / k8s clusters — master / node</text>
+  <text x="66" y="474" class="sub">cloud-init seed ISO · DHCP-lease IP</text>
+  <text x="66" y="492" class="pill">SSH → Terminal.app</text>
+
+  <!-- ===== vsock bridge ===== -->
+  <line x1="410" y1="150" x2="510" y2="150" class="edgep"/>
+  <text x="416" y="142" class="edget">vsock 2375</text>
+  <text x="416" y="166" class="edget">HTTP/1.1 Docker API</text>
+
+  <line x1="410" y1="233" x2="510" y2="233" class="edgep"/>
+  <text x="416" y="225" class="edget">relay → guest IP</text>
+
+  <line x1="410" y1="330" x2="510" y2="330" class="edge"/>
+  <text x="416" y="322" class="edget">virtio-blk</text>
+
+  <!-- ===== GUEST (Alpine VM) ===== -->
+  <rect x="510" y="72" width="380" height="452" rx="12" class="guest"/>
+  <text x="530" y="98" class="zone">DOCKER VM · Alpine Linux (linux-virt)</text>
+
+  <!-- dockerd -->
+  <rect x="530" y="112" width="340" height="72" rx="9" class="card"/>
+  <text x="546" y="136" class="label" font-weight="700">dockerd + containerd + compose</text>
+  <text x="546" y="155" class="sub">/var/run/docker.sock</text>
+  <text x="546" y="172" class="sub">Rosetta binfmt → run linux/amd64 images</text>
+
+  <!-- socat agents -->
+  <rect x="530" y="200" width="340" height="96" rx="9" class="card"/>
+  <text x="546" y="224" class="label" font-weight="700">Agents (socat over vsock)</text>
+  <text x="546" y="244" class="sub">2375 → docker.sock   ·   2376 → report eth0 IP</text>
+  <text x="546" y="262" class="sub">2377 → graceful poweroff   ·   2378 → debug shell</text>
+  <text x="546" y="282" class="sub">OpenRC services · first boot grows rootfs</text>
+
+  <!-- containers -->
+  <rect x="530" y="312" width="340" height="120" rx="9" class="card"/>
+  <text x="546" y="336" class="label" font-weight="700">Containers</text>
+  <g>
+    <rect x="546" y="350" width="96" height="30" rx="6" class="host"/>
+    <text x="594" y="370" class="sub" text-anchor="middle">nginx :80</text>
+    <rect x="654" y="350" width="96" height="30" rx="6" class="host"/>
+    <text x="702" y="370" class="sub" text-anchor="middle">postgres</text>
+    <rect x="762" y="350" width="92" height="30" rx="6" class="host"/>
+    <text x="808" y="370" class="sub" text-anchor="middle">redis</text>
+  </g>
+  <text x="546" y="404" class="sub">NAT network · published ports mirrored to host</text>
+  <text x="546" y="422" class="sub">volumes on disk.img</text>
+
+  <!-- networking -->
+  <rect x="530" y="444" width="340" height="60" rx="9" class="card"/>
+  <text x="546" y="468" class="label" font-weight="700">VZ virtio devices</text>
+  <text x="546" y="487" class="sub">NAT net · vsock · entropy · balloon · serial console</text>
+
+  <!-- footer -->
+  <text x="30" y="548" class="sub">EFI boot · virtio-blk disk · NAT networking · virtiofs $HOME · vsock · Rosetta directory share</text>
+</svg>
