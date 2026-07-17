@@ -1,11 +1,8 @@
 <p align="center">
-  <img src="public/logo.png" alt="DockZ" width="128">
+  <img src="public/social-preview.png" alt="DockZ — Docker &amp; Linux VMs on Apple Silicon, natively" width="880">
 </p>
 
-<h1 align="center">DockZ</h1>
-
-<p align="center"><b>Docker &amp; Linux VMs on Apple Silicon, natively.</b><br>
-A ~5 MB menu bar app that boots the real <code>dockerd</code> in a tiny Alpine VM —<br>
+<p align="center">A menu bar app that boots the real <code>dockerd</code> in a tiny Alpine VM —<br>
 plus a Docker Desktop–style dashboard and Multipass-style Linux machines.</p>
 
 <p align="center">
