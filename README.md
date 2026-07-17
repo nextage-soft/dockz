@@ -155,6 +155,47 @@ build/DockZ.app/Contents/MacOS/DockZ install-docker-cli
 build/DockZ.app/Contents/MacOS/DockZ setup-shell        # --remove to undo
 ```
 
+### Code signing (do it yourself, no paid account)
+
+Virtualization.framework refuses to start a VM unless the app is signed with
+the `com.apple.security.virtualization` entitlement
+([scripts/dockz.entitlements](scripts/dockz.entitlements)). The build script
+signs automatically, picking the first identity that exists:
+
+1. `$SIGN_IDENTITY` if you export it,
+2. else the first **Apple Development** certificate on the machine,
+3. else an **ad-hoc** signature (`-`).
+
+All three run the VM fine. The difference: an Apple Development certificate
+gives the app a stable identity across rebuilds (macOS remembers permission
+grants like Local Network), while ad-hoc is anonymous — harmless, but macOS
+treats every rebuild as a brand-new app. You can create an Apple Development
+certificate for free (no paid membership): Xcode → Settings → Accounts → add
+your Apple ID → Manage Certificates → **+** → Apple Development.
+
+```bash
+# See what's available, then pin one explicitly if you like:
+security find-identity -v -p codesigning
+SIGN_IDENTITY="Apple Development: you@example.com (TEAMID)" scripts/build-and-bundle-app.sh
+```
+
+**Re-signing a downloaded DockZ.app** (e.g. from a release) with your own
+signature — this both satisfies the entitlement and clears Gatekeeper's
+"unidentified developer" complaint:
+
+```bash
+xattr -dr com.apple.quarantine DockZ.app
+codesign --force --deep --options runtime \
+  --entitlements scripts/dockz.entitlements \
+  --sign - DockZ.app                      # "-" = ad-hoc; or your identity
+```
+
+Verify the entitlement took:
+
+```bash
+codesign -d --entitlements - /Applications/DockZ.app   # must list …virtualization
+```
+
 ## Usage
 
 ```bash
