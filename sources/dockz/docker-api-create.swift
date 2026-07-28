@@ -81,6 +81,7 @@ extension DockerAPIClient {
         name: String?,
         config: [String: Any],
         pullAuthHeader: String? = nil,
+        extraNetworks: [String] = [],
         completion: @escaping (String?) -> Void
     ) {
         createContainer(name: name, config: config, pullAuthHeader: pullAuthHeader) { [weak self] id, errorMessage in
@@ -88,8 +89,33 @@ extension DockerAPIClient {
                 completion(errorMessage ?? "create failed")
                 return
             }
-            self?.containerAction("start", id: id, completion: completion)
+            // Joining while still stopped means every interface is up from the
+            // container's first instant — same as compose with several networks.
+            self?.connectNetworks(extraNetworks, containerID: id) { connectError in
+                self?.containerAction("start", id: id) { startError in
+                    completion(startError ?? connectError)
+                }
+            }
         }
+    }
+
+    /// Connects the container to each network in order; reports the first
+    /// failure but still attempts the rest (missing one network should not
+    /// strand the container off the others).
+    func connectNetworks(_ networks: [String], containerID: String,
+                         completion: @escaping (String?) -> Void) {
+        var remaining = networks.filter { !$0.isEmpty }
+        func next(_ firstError: String?) {
+            guard !remaining.isEmpty else {
+                completion(firstError)
+                return
+            }
+            let network = remaining.removeFirst()
+            connectNetwork(network, containerID: containerID) { error in
+                next(firstError ?? error.map { "connect \(network): \($0)" })
+            }
+        }
+        next(nil)
     }
 
     func renameContainer(id: String, to name: String, completion: @escaping (String?) -> Void) {

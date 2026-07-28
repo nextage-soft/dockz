@@ -66,6 +66,7 @@ enum TestRunner {
                 "CapAdd": ["SYS_NICE"],
             ] as [String: Any],
             "Mounts": [["Type": "volume", "Name": "pgdata", "Destination": "/var/lib/postgresql/data", "RW": true]],
+            "NetworkSettings": ["Networks": ["bridge": [:], "backend": [:], "metrics": [:]]] as [String: Any],
         ]
     }
 
@@ -78,6 +79,7 @@ enum TestRunner {
         expectEqual(form.volumesText, "pgdata:/var/lib/postgresql/data", "form.volumes prefill")
         expectEqual(form.restartPolicy, "always", "form.restartPolicy")
         expect(form.network.isEmpty, "bridge → default network")
+        expectEqual(form.extraNetworks, ["backend", "metrics"], "extra networks prefilled, primary excluded")
         expectEqual(form.memoryMiB, "512", "form.memory MiB")
         expectEqual(form.labelsText, "com.example.role=db", "form.labels prefill")
 

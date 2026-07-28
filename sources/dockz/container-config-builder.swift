@@ -14,6 +14,9 @@ struct RunContainerForm {
     var labelsText = ""     // one KEY=VALUE per line
     var restartPolicy = "no"
     var network = ""
+    /// Networks joined in addition to `network` (create API takes one; the
+    /// store connects these right after create, before start).
+    var extraNetworks: [String] = []
     var privileged = false
     var memoryMiB = ""      // empty = unlimited
     var cpus = ""           // empty = unlimited
@@ -135,6 +138,9 @@ enum ContainerConfigBuilder {
         } ?? "no"
         let mode = hostConfig["NetworkMode"] as? String ?? ""
         form.network = (mode == "default" || mode == "bridge") ? "" : mode
+        let joined = ((inspect["NetworkSettings"] as? [String: Any])?["Networks"] as? [String: Any]) ?? [:]
+        let primary = form.network.isEmpty ? "bridge" : form.network
+        form.extraNetworks = joined.keys.sorted().filter { $0 != primary }
         form.privileged = hostConfig["Privileged"] as? Bool ?? false
         let memory = hostConfig["Memory"] as? Int ?? 0
         form.memoryMiB = memory > 0 ? String(memory / (1024 * 1024)) : ""

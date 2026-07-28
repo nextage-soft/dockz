@@ -146,6 +146,17 @@ struct RunContainerFormView: View {
                     .labelsHidden()
                     .frame(maxWidth: 260, alignment: .leading)
                 }
+                if !additionalNetworkChoices.isEmpty {
+                    LabeledField("Also join") {
+                        VStack(alignment: .leading, spacing: 4) {
+                            ForEach(additionalNetworkChoices, id: \.self) { name in
+                                Toggle(name, isOn: extraNetworkBinding(name))
+                                    .toggleStyle(.checkbox)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
                 LabeledField("Memory") {
                     HStack(spacing: 6) {
                         TextField("", text: $form.memoryMiB, prompt: Text("unlimited"))
@@ -187,6 +198,29 @@ struct RunContainerFormView: View {
                 .disabled(form.image.trimmingCharacters(in: .whitespaces).isEmpty || isBusy)
         }
         .padding(14)
+    }
+
+    /// Networks offerable on top of the primary one. `host`/`none` are exclusive
+    /// modes, and the effective primary (chosen, or bridge for default) is
+    /// already joined — offering it twice would just error on connect.
+    private var additionalNetworkChoices: [String] {
+        let primary = form.network.isEmpty ? "bridge" : form.network
+        return store.networks.map(\.name)
+            .filter { !["host", "none"].contains($0) && $0 != primary }
+            .sorted()
+    }
+
+    private func extraNetworkBinding(_ name: String) -> Binding<Bool> {
+        Binding(
+            get: { form.extraNetworks.contains(name) },
+            set: { joined in
+                if joined {
+                    if !form.extraNetworks.contains(name) { form.extraNetworks.append(name) }
+                } else {
+                    form.extraNetworks.removeAll { $0 == name }
+                }
+            }
+        )
     }
 
     private var isEditMode: Bool {
