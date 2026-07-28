@@ -148,12 +148,11 @@ struct RunContainerFormView: View {
                 }
                 if !additionalNetworkChoices.isEmpty {
                     LabeledField("Also join") {
-                        VStack(alignment: .leading, spacing: 4) {
-                            ForEach(additionalNetworkChoices, id: \.self) { name in
-                                Toggle(name, isOn: extraNetworkBinding(name))
-                                    .toggleStyle(.checkbox)
-                            }
-                        }
+                        NetworkMultiPickList(
+                            choices: additionalNetworkChoices,
+                            drivers: Dictionary(uniqueKeysWithValues: store.networks.map { ($0.name, $0.driver) }),
+                            selection: $form.extraNetworks
+                        )
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
@@ -208,19 +207,6 @@ struct RunContainerFormView: View {
         return store.networks.map(\.name)
             .filter { !["host", "none"].contains($0) && $0 != primary }
             .sorted()
-    }
-
-    private func extraNetworkBinding(_ name: String) -> Binding<Bool> {
-        Binding(
-            get: { form.extraNetworks.contains(name) },
-            set: { joined in
-                if joined {
-                    if !form.extraNetworks.contains(name) { form.extraNetworks.append(name) }
-                } else {
-                    form.extraNetworks.removeAll { $0 == name }
-                }
-            }
-        )
     }
 
     private var isEditMode: Bool {
