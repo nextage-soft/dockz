@@ -19,6 +19,7 @@ enum TestRunner {
         snapshots()
         dockerCLIResolution()
         buildStepMarkers()
+        containerNetworks()
         shellIntegration()
 
         print("")
@@ -153,6 +154,26 @@ enum TestRunner {
             .hasPrefix("kubeadm join") == true, "k8s join capture")
         expect(MachineDistro.by(id: "alpine-3.22")?.supportedEngines == [.k3s], "alpine → k3s only")
         expect(MachineDistro.by(id: "debian-13")?.supportedEngines == [.k3s, .k8s], "debian → k3s+k8s")
+    }
+
+    /// A container joined to several networks must list them all, sorted, and
+    /// surface a usable IP even when the top-level IPAddress is empty.
+    private static func containerNetworks() {
+        let detail = ContainerDetail(dict: [
+            "Name": "/web",
+            "NetworkSettings": [
+                "IPAddress": "",
+                "Networks": [
+                    "frontend": ["IPAddress": "172.20.0.5"],
+                    "backend": ["IPAddress": "172.21.0.5"],
+                    "empty-net": [:],
+                ],
+            ] as [String: Any],
+        ])
+        expectEqual(detail.networks.map(\.name), ["backend", "empty-net", "frontend"],
+                    "joined networks sorted")
+        expectEqual(detail.networks.first?.ipAddress, "172.21.0.5", "per-network IP parsed")
+        expect(!detail.ipAddress.isEmpty, "fallback IP picked from joined networks")
     }
 
     /// The provision script drives the setup progress bar via console markers.

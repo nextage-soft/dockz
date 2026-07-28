@@ -12,6 +12,8 @@ struct VMSettingsView: View {
     @State private var snapshotName = ""
     @State private var snapshotRefresh = 0
     @State private var pendingRestore: DiskSnapshot?
+    @State private var launchAtLogin = LaunchAtLogin.isEnabled
+    @State private var launchAtLoginError: String?
 
     private var hardwareCPUs: Int { ProcessInfo.processInfo.processorCount }
 
@@ -69,6 +71,22 @@ struct VMSettingsView: View {
             Section("Integration") {
                 Toggle("Share home directory (virtiofs bind mounts)", isOn: $shareHome)
                 Toggle("Rosetta (run linux/amd64 images)", isOn: $enableRosetta)
+                Toggle("Start DockZ at login", isOn: $launchAtLogin)
+                    .onChange(of: launchAtLogin) { enabled in
+                        do {
+                            try LaunchAtLogin.set(enabled)
+                            launchAtLoginError = nil
+                        } catch {
+                            launchAtLoginError = error.localizedDescription
+                            launchAtLogin = LaunchAtLogin.isEnabled
+                        }
+                    }
+                if let launchAtLoginError {
+                    Text(launchAtLoginError).font(.caption).foregroundStyle(.red)
+                } else if launchAtLogin {
+                    Text("The Docker engine comes up in the background — no window opens. Manage it in System Settings → Login Items.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
             }
             DockerCLISettingsSection(store: store)
             Section {

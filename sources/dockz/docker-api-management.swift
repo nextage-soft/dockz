@@ -86,6 +86,33 @@ extension DockerAPIClient {
         expectSuccess(method: "POST", path: "/volumes/prune", completion: completion)
     }
 
+    // MARK: - Container ↔ network membership (a container can join several)
+
+    func connectNetwork(_ networkName: String, containerID: String, completion: @escaping (String?) -> Void) {
+        networkMembership("connect", network: networkName, containerID: containerID, completion: completion)
+    }
+
+    func disconnectNetwork(_ networkName: String, containerID: String, completion: @escaping (String?) -> Void) {
+        networkMembership("disconnect", network: networkName, containerID: containerID, completion: completion)
+    }
+
+    private func networkMembership(_ verb: String, network: String, containerID: String,
+                                   completion: @escaping (String?) -> Void) {
+        postJSON(path: "/networks/\(network)/\(verb)", json: ["Container": containerID]) { result in
+            switch result {
+            case .failure(let error):
+                completion(error.localizedDescription)
+            case .success(let response):
+                if (200..<300).contains(response.status) {
+                    completion(nil)
+                } else {
+                    let message = (try? JSONSerialization.jsonObject(with: response.body) as? [String: Any])?["message"] as? String
+                    completion(message ?? "HTTP \(response.status)")
+                }
+            }
+        }
+    }
+
     func fetchLogs(id: String, completion: @escaping (String) -> Void) {
         requestData(method: "GET", path: "/containers/\(id)/logs?stdout=true&stderr=true&tail=400") { result in
             guard case .success(let response) = result else {
