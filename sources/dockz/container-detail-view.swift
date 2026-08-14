@@ -118,6 +118,7 @@ struct ContainerDetailView: View {
                         }
                     }
                 }
+                networksSection(detail)
                 if !detail.labels.isEmpty {
                     Section("Labels") {
                         ForEach(detail.labels.keys.sorted(), id: \.self) { key in
@@ -130,6 +131,43 @@ struct ContainerDetailView: View {
             }
         }
         .formStyle(.grouped)
+    }
+
+    /// A container can belong to several docker networks at once; joining and
+    /// leaving take effect live (`docker network connect/disconnect`).
+    private func networksSection(_ detail: ContainerDetail) -> some View {
+        Section("Networks") {
+            ForEach(detail.networks) { network in
+                HStack {
+                    Label(network.name, systemImage: "network")
+                    Spacer()
+                    Text(network.ipAddress.isEmpty ? "—" : network.ipAddress)
+                        .font(.callout.monospaced())
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                    Button("Disconnect") {
+                        store.disconnectNetwork(network.name, container: container)
+                    }
+                    .controlSize(.small)
+                    // The last network would leave the container unreachable.
+                    .disabled(detail.networks.count == 1)
+                    .help(detail.networks.count == 1
+                          ? "A container needs at least one network"
+                          : "Leave \(network.name)")
+                }
+            }
+            let joined = Set(detail.networks.map(\.name))
+            let available = store.networks.map(\.name)
+                .filter { !joined.contains($0) && $0 != "none" && $0 != "host" }
+            if !available.isEmpty {
+                Menu("Connect to network…") {
+                    ForEach(available, id: \.self) { name in
+                        Button(name) { store.connectNetwork(name, container: container) }
+                    }
+                }
+                .frame(maxWidth: 220)
+            }
+        }
     }
 
     private var mountsTab: some View {

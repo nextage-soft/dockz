@@ -17,6 +17,20 @@ extension DashboardStore {
         selectedContainer = nil
     }
 
+    // MARK: - Network membership (multi-network containers)
+
+    func connectNetwork(_ networkName: String, container: ContainerSummary) {
+        run(busyKey: container.id) { api, done in
+            api.connectNetwork(networkName, containerID: container.id, completion: done)
+        }
+    }
+
+    func disconnectNetwork(_ networkName: String, container: ContainerSummary) {
+        run(busyKey: container.id) { api, done in
+            api.disconnectNetwork(networkName, containerID: container.id, completion: done)
+        }
+    }
+
     func reloadDetail() {
         guard let api = apiProvider(), let container = selectedContainer else { return }
         let id = container.id

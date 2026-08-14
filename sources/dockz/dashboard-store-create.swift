@@ -12,7 +12,10 @@ extension DashboardStore {
         busyIDs.insert("run-container")
         let config = ContainerConfigBuilder.buildCreateConfig(form)
         let auth = pullAuthHeader(forImageRef: form.image)
-        api.createAndStartContainer(name: form.name, config: config, pullAuthHeader: auth) { [weak self] errorMessage in
+        let primary = form.network.isEmpty ? "bridge" : form.network
+        let extras = form.extraNetworks.filter { $0 != primary }
+        api.createAndStartContainer(name: form.name, config: config, pullAuthHeader: auth,
+                                    extraNetworks: extras) { [weak self] errorMessage in
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.busyIDs.remove("run-container")

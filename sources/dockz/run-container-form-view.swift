@@ -146,6 +146,16 @@ struct RunContainerFormView: View {
                     .labelsHidden()
                     .frame(maxWidth: 260, alignment: .leading)
                 }
+                if !additionalNetworkChoices.isEmpty {
+                    LabeledField("Also join") {
+                        NetworkMultiPickList(
+                            choices: additionalNetworkChoices,
+                            drivers: Dictionary(uniqueKeysWithValues: store.networks.map { ($0.name, $0.driver) }),
+                            selection: $form.extraNetworks
+                        )
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
                 LabeledField("Memory") {
                     HStack(spacing: 6) {
                         TextField("", text: $form.memoryMiB, prompt: Text("unlimited"))
@@ -187,6 +197,16 @@ struct RunContainerFormView: View {
                 .disabled(form.image.trimmingCharacters(in: .whitespaces).isEmpty || isBusy)
         }
         .padding(14)
+    }
+
+    /// Networks offerable on top of the primary one. `host`/`none` are exclusive
+    /// modes, and the effective primary (chosen, or bridge for default) is
+    /// already joined — offering it twice would just error on connect.
+    private var additionalNetworkChoices: [String] {
+        let primary = form.network.isEmpty ? "bridge" : form.network
+        return store.networks.map(\.name)
+            .filter { !["host", "none"].contains($0) && $0 != primary }
+            .sorted()
     }
 
     private var isEditMode: Bool {
