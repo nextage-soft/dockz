@@ -24,6 +24,7 @@ enum TestRunner {
         diskUsage()
         cleanupPrune()
         monitorParsing()
+        advancedSettings()
 
         print("")
         if failures.isEmpty {
@@ -159,6 +160,65 @@ enum TestRunner {
             .hasPrefix("kubeadm join") == true, "k8s join capture")
         expect(MachineDistro.by(id: "alpine-3.22")?.supportedEngines == [.k3s], "alpine → k3s only")
         expect(MachineDistro.by(id: "debian-13")?.supportedEngines == [.k3s, .k8s], "debian → k3s+k8s")
+    }
+
+    /// Advanced form settings must round-trip through inspect → form → create
+    /// body, and clearing them in Edit & Recreate must really clear them.
+    private static func advancedSettings() {
+        let inspect: [String: Any] = [
+            "Id": "abcdef0123456789",
+            "Config": [
+                "Image": "nginx",
+                "Hostname": "web-01",
+                "Healthcheck": ["Test": ["CMD-SHELL", "curl -f localhost"],
+                                "Interval": 30_000_000_000, "Retries": 3],
+            ] as [String: Any],
+            "HostConfig": [
+                "Dns": ["1.1.1.1"],
+                "ExtraHosts": ["db.local:10.0.0.5"],
+                "CapAdd": ["CAP_NET_ADMIN"],
+                "CapDrop": ["MKNOD"],
+                "Init": true,
+                "ShmSize": 268_435_456,
+                "Devices": [["PathOnHost": "/dev/fuse", "PathInContainer": "/dev/fuse", "CgroupPermissions": "rwm"]],
+                "Sysctls": ["net.core.somaxconn": "1024"],
+                "LogConfig": ["Type": "json-file", "Config": ["max-size": "10m"]],
+            ] as [String: Any],
+        ]
+        let a = ContainerConfigBuilder.advancedFromInspect(inspect)
+        expectEqual(a.hostname, "web-01", "adv: explicit hostname kept")
+        expectEqual(a.capAdd, ["NET_ADMIN"], "adv: CAP_ prefix normalized")
+        expectEqual(a.extraHostsText, "db.local=10.0.0.5", "adv: extra host prefill")
+        expectEqual(a.shmSizeMiB, "256", "adv: shm size MiB")
+        expectEqual(a.devicesText, "/dev/fuse", "adv: simple device collapses to one path")
+        expectEqual(a.healthCommand, "curl -f localhost", "adv: health command")
+        expectEqual(a.healthIntervalSeconds, "30", "adv: health interval seconds")
+
+        var form = RunContainerForm()
+        form.image = "nginx"
+        form.advanced = a
+        let body = ContainerConfigBuilder.buildCreateConfig(form)
+        let host = body["HostConfig"] as? [String: Any] ?? [:]
+        expectEqual(host["ExtraHosts"] as? [String], ["db.local:10.0.0.5"], "adv: extra host emitted host:ip")
+        expectEqual(host["ShmSize"] as? Int, 268_435_456, "adv: shm size bytes")
+        expectEqual((host["LogConfig"] as? [String: Any])?["Type"] as? String, "json-file", "adv: log driver")
+        let health = body["Healthcheck"] as? [String: Any]
+        expectEqual(health?["Interval"] as? Int, 30_000_000_000, "adv: health interval ns")
+
+        // Default docker hostname (id prefix) must not be pinned into edits.
+        var defaulted = inspect
+        defaulted["Config"] = ["Hostname": "abcdef012345"]
+        expect(ContainerConfigBuilder.advancedFromInspect(defaulted).hostname.isEmpty,
+               "adv: default hostname not prefilled")
+
+        // Clearing in Edit & Recreate really clears.
+        var cleared = ContainerConfigBuilder.formFromInspect(inspect)
+        cleared.advanced.capAdd = []
+        cleared.advanced.healthCommand = ""
+        let merged = ContainerConfigBuilder.mergeForEdit(base: inspect, form: cleared)
+        expectEqual((merged["HostConfig"] as? [String: Any])?["CapAdd"] as? [String], [],
+                    "adv: cleared caps overwrite old ones")
+        expect(merged["Healthcheck"] == nil, "adv: cleared health check falls back to image")
     }
 
     /// Monitor tab parsers: guest /proc sample, CPU% from jiffy deltas, and
