@@ -64,6 +64,9 @@ struct DashboardRootView: View {
         .sheet(item: $store.editPayload) { payload in
             RunContainerFormView(store: store, mode: .edit(payload))
         }
+        .sheet(item: $store.duplicatePayload) { payload in
+            RunContainerFormView(store: store, mode: .duplicate(payload.form))
+        }
         .alert("Docker error", isPresented: errorBinding) {
             Button("OK", role: .cancel) {}
         } message: {

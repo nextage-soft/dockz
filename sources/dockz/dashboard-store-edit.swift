@@ -12,6 +12,31 @@ extension DashboardStore {
         let baseInspect: [String: Any]
     }
 
+    /// Wrapper so the duplicate form can drive `.sheet(item:)`.
+    struct DuplicatePayload: Identifiable {
+        let id = UUID()
+        var form: RunContainerForm
+    }
+
+    /// Prefills the run form from an existing container. The name gets a
+    /// "-copy" suffix and host ports are cleared — duplicating them verbatim
+    /// would collide with the original the moment the copy starts.
+    func beginDuplicateContainer(_ container: ContainerSummary) {
+        guard let api = apiProvider() else { return }
+        api.inspectContainerDict(id: container.id) { [weak self] inspect in
+            DispatchQueue.main.async {
+                guard let self, let inspect else {
+                    self?.lastError = "Could not inspect \(container.name)"
+                    return
+                }
+                var form = ContainerConfigBuilder.formFromInspect(inspect)
+                form.name = form.name.isEmpty ? "" : "\(form.name)-copy"
+                form.portsText = ""
+                self.duplicatePayload = DuplicatePayload(form: form)
+            }
+        }
+    }
+
     func beginEditContainer(_ container: ContainerSummary) {
         guard let api = apiProvider() else { return }
         api.inspectContainerDict(id: container.id) { [weak self] inspect in

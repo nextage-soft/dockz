@@ -102,6 +102,7 @@ final class DashboardStore: ObservableObject {
     }
     @Published var imageInspect: ImageInspectPayload?
     @Published var editPayload: EditContainerPayload?
+    @Published var duplicatePayload: DuplicatePayload?
 
     var apiProvider: () -> DockerAPIClient? = { nil }
     var shellProvider: () -> DockerAPIClient.VsockConnect? = { nil }
