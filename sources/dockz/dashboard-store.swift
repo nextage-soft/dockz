@@ -10,7 +10,6 @@ final class DashboardStore: ObservableObject {
         var currentSettings: () -> DockzSettings
         var startVM: () -> Void = {}
         var stopVM: () -> Void = {}
-        var vmStateLabel: () -> String
         var storagePath: () -> String = { "~/.dockz" }
         var changeStorage: (URL) -> Void = { _ in }
         var resetStorage: () -> Void = {}
@@ -42,6 +41,29 @@ final class DashboardStore: ObservableObject {
 
     // Base system info (Settings page, read live from the guest)
     @Published var baseSystem: [String: String] = [:]
+
+    // Disk reclaim (fstrim in the guest → APFS hole punch on the host)
+    @Published var reclaimBusy = false
+    @Published var reclaimResult = ""
+
+    // Clean up (prune images / build cache / …, then reclaim)
+    @Published var cleanupBusy = false
+    @Published var cleanupResult = ""
+
+    /// Live VM state, pushed by the AppDelegate the moment it changes.
+    /// (The pull-based `hostActions.vmStateLabel` closure only re-rendered on
+    /// the 4-second refresh timer, so Stop/Restart showed no feedback.)
+    @Published var vmDisplayState = "Stopped"
+
+    /// Full-window overlay while the VM transitions, so a Stop/Restart click
+    /// has visible effect immediately.
+    var vmTransitionLabel: String? {
+        switch vmDisplayState {
+        case "Starting…": return "Starting the engine…"
+        case "Stopping…": return "Stopping the engine…"
+        default: return nil
+        }
+    }
 
     // Compose stacks
     @Published var stackFiles: [StackEntry] = []
@@ -86,6 +108,7 @@ final class DashboardStore: ObservableObject {
     var hostActions: HostActions?
     let registries = RegistryStore()
     let machineManager = MachineManager()
+    let monitor = MonitorStore()
 
     /// X-Registry-Auth for pulling `imageRef`, when a registry is configured.
     func pullAuthHeader(forImageRef imageRef: String) -> String? {

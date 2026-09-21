@@ -26,6 +26,18 @@ extension DockerAPIClient {
         }
     }
 
+    /// Raw stats dict for the Monitor tab — it also needs the network and
+    /// block-IO counters that `ContainerStats` does not carry.
+    func containerStatsRaw(id: String, completion: @escaping ([String: Any]?) -> Void) {
+        getObject("/containers/\(id)/stats?stream=false", completion: completion)
+    }
+
+    /// GET /system/df — image/container/volume/build-cache sizes. Docker walks
+    /// the filesystem for this, so poll it sparingly (tens of seconds).
+    func systemDiskUsage(completion: @escaping ([String: Any]?) -> Void) {
+        getObject("/system/df", completion: completion)
+    }
+
     func inspectImage(id: String, completion: @escaping (String) -> Void) {
         prettyJSON("/images/\(id)/json", completion: completion)
     }

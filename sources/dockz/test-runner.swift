@@ -21,6 +21,9 @@ enum TestRunner {
         buildStepMarkers()
         containerNetworks()
         shellIntegration()
+        diskUsage()
+        cleanupPrune()
+        monitorParsing()
 
         print("")
         if failures.isEmpty {
@@ -156,6 +159,86 @@ enum TestRunner {
             .hasPrefix("kubeadm join") == true, "k8s join capture")
         expect(MachineDistro.by(id: "alpine-3.22")?.supportedEngines == [.k3s], "alpine → k3s only")
         expect(MachineDistro.by(id: "debian-13")?.supportedEngines == [.k3s, .k8s], "debian → k3s+k8s")
+    }
+
+    /// Monitor tab parsers: guest /proc sample, CPU% from jiffy deltas, and
+    /// the /system/df breakdown (sizes + reclaimable).
+    private static func monitorParsing() {
+        let output = """
+        cpu  100 0 50 800 50 0 0 0 0 0
+        MemTotal:        2013580 kB
+        MemAvailable:     705024 kB
+        Cached:           419840 kB
+        LOAD 0.92 0.61 0.33 2/155 4021
+        UPTIME 186340.22
+        DISK /dev/vda2 66055168 21471232 44583936 33% /
+        """
+        guard let first = MonitorParse.guestSnapshot(from: output) else {
+            expect(false, "guest snapshot parsed")
+            return
+        }
+        expectEqual(first.totalJiffies, 1000, "guest total jiffies")
+        expectEqual(first.busyJiffies, 150, "guest busy jiffies (idle+iowait excluded)")
+        expectEqual(first.memTotalKiB, 2_013_580, "guest mem total")
+        expectEqual(first.diskSizeKiB, 66_055_168, "guest disk size")
+        expect(abs(first.load1 - 0.92) < 0.001, "guest load1")
+
+        var second = first
+        second.totalJiffies += 400
+        second.busyJiffies += 100
+        expect(abs(MonitorParse.cpuPercent(previous: first, current: second) - 25) < 0.001,
+               "cpu percent from jiffy delta")
+        expectEqual(MonitorParse.cpuPercent(previous: second, current: first), 0,
+                    "counter reset → 0, not negative")
+
+        expect(abs(MonitorParse.rate(1000, 4000, seconds: 3) - 1000) < 0.001, "byte rate per second")
+
+        let df: [String: Any] = [
+            "LayersSize": 9_600_000_000,
+            "Images": [["Size": 5_200_000_000, "Containers": 0], ["Size": 2_000_000_000, "Containers": 2]],
+            "Containers": [["SizeRw": 4_500_000_000]],
+            "Volumes": [["UsageData": ["Size": 3_800_000_000, "RefCount": 0]]],
+            "BuildCache": [["Size": 1_700_000_000, "InUse": false]],
+        ]
+        let breakdown = MonitorParse.diskBreakdown(from: df)
+        expectEqual(breakdown.imagesBytes, 9_600_000_000, "df images = LayersSize")
+        expectEqual(breakdown.imagesReclaimable, 5_200_000_000, "df reclaimable = unreferenced images")
+        expectEqual(breakdown.volumesReclaimable, 3_800_000_000, "df volume refcount 0 reclaimable")
+        expectEqual(breakdown.buildCacheReclaimable, 1_700_000_000, "df build cache not in use")
+        expectEqual(breakdown.totalBytes, 19_600_000_000, "df total sums categories")
+    }
+
+    /// Cleanup panel plumbing: docker's SpaceReclaimed parses in both integer
+    /// and float form, and the images filter widens prune beyond dangling.
+    private static func cleanupPrune() {
+        expectEqual(DockerAPIClient.spaceReclaimed(Data(#"{"SpaceReclaimed": 1234567}"#.utf8)),
+                    1_234_567, "prune SpaceReclaimed int")
+        expectEqual(DockerAPIClient.spaceReclaimed(Data(#"{"SpaceReclaimed": 2.5e9}"#.utf8)),
+                    2_500_000_000, "prune SpaceReclaimed float form")
+        expectEqual(DockerAPIClient.spaceReclaimed(Data(#"{"NetworksDeleted": []}"#.utf8)),
+                    0, "prune without SpaceReclaimed → 0")
+        expectEqual(DockerAPIClient.unusedImagesFilter.removingPercentEncoding,
+                    #"{"dangling":["false"]}"#, "unused-images filter decodes to docker syntax")
+    }
+
+    /// Sparse-image accounting: the reclaim UI reports decimal GB like Finder,
+    /// and a sparse file must show allocated < apparent.
+    private static func diskUsage() {
+        expectEqual(DiskUsage.format(22_100_000_000), "22.1 GB", "disk usage decimal GB")
+        expectEqual(DiskUsage.format(0), "0.0 GB", "disk usage zero")
+
+        // Real sparse file: 8 MB long, nothing allocated beyond metadata.
+        let sparse = FileManager.default.temporaryDirectory
+            .appendingPathComponent("dockz-sparse-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: sparse) }
+        FileManager.default.createFile(atPath: sparse.path, contents: nil)
+        if let handle = try? FileHandle(forWritingTo: sparse) {
+            try? handle.truncate(atOffset: 8 * 1024 * 1024)
+            try? handle.close()
+        }
+        expectEqual(DiskUsage.apparentBytes(at: sparse), 8 * 1024 * 1024, "apparent = logical length")
+        expect((DiskUsage.allocatedBytes(at: sparse) ?? .max) < 8 * 1024 * 1024,
+               "sparse file allocates less than its length")
     }
 
     /// A container joined to several networks must list them all, sorted, and
