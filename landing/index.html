@@ -63,6 +63,7 @@
       padding: 0 24px;
       position: relative;
       z-index: 1;
+      width: 100%;
     }
 
     /* Top nav */
@@ -133,6 +134,9 @@
       font-size: 13px;
       color: var(--text-dim);
       margin-bottom: 28px;
+      max-width: 100%;
+      flex-wrap: wrap;
+      justify-content: center;
     }
     .hero-badge .dot {
       width: 6px; height: 6px; border-radius: 50%;
@@ -140,11 +144,15 @@
       box-shadow: 0 0 8px var(--green);
     }
     h1 {
-      font-size: clamp(40px, 7vw, 76px);
+      font-size: clamp(36px, 6.5vw, 76px);
       font-weight: 800;
       letter-spacing: -0.03em;
       line-height: 1.05;
       margin-bottom: 24px;
+      overflow-wrap: break-word;
+      word-wrap: break-word;
+      word-break: normal;
+      max-width: 100%;
     }
     h1 .gradient {
       background: var(--gradient);
@@ -409,13 +417,33 @@
       .features { grid-template-columns: repeat(2, 1fr); }
       .install { grid-template-columns: 1fr; }
       .stats { grid-template-columns: repeat(2, 1fr); }
+      .hero { padding: 64px 0 56px; }
+      section { padding: 64px 0; }
     }
     @media (max-width: 560px) {
+      .container { padding: 0 16px; }
       .nav-links a:not(.btn) { display: none; }
       .shots { grid-template-columns: 1fr; }
       .features { grid-template-columns: 1fr; }
       .compare { font-size: 12px; }
       .compare th, .compare td { padding: 10px 12px; }
+      .nav-inner { gap: 8px; }
+      .brand span { display: none; }
+      .btn { padding: 8px 12px; font-size: 13px; }
+      h1 { font-size: clamp(28px, 8.5vw, 40px); letter-spacing: -0.02em; word-break: break-word; }
+      .hero-cta { flex-direction: column; align-items: stretch; }
+      .hero-cta .btn { justify-content: center; }
+      .stats { grid-template-columns: 1fr 1fr; }
+      .stat { padding: 16px 8px; }
+      .stat-value { font-size: 20px; }
+      .stat-label { font-size: 11px; letter-spacing: 0.06em; }
+      .section-head { margin-bottom: 40px; }
+      .install-card { padding: 18px; }
+      .code-block { font-size: 12.5px; padding: 14px; }
+    }
+    @media (max-width: 380px) {
+      .stats { grid-template-columns: 1fr; }
+      .hero-badge { font-size: 11px; padding: 5px 10px; }
     }
   </style>
 </head>

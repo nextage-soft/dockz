@@ -6,6 +6,7 @@ extension DashboardStore {
 
     func openDetail(for container: ContainerSummary) {
         selectedContainer = container
+        detailTab = 0
         containerDetail = nil
         containerStats = nil
         detailInspectJSON = ""
@@ -15,6 +16,99 @@ extension DashboardStore {
 
     func closeDetail() {
         selectedContainer = nil
+    }
+
+    // MARK: - Clean up
+
+    /// What the cleanup panel may prune. Volumes hold user data and stopped
+    /// containers may be restarted later, so those default to off.
+    struct CleanupOptions {
+        var unusedImages = true
+        var buildCache = true
+        var stoppedContainers = false
+        var unusedNetworks = false
+        var unusedVolumes = false
+    }
+
+    /// Prunes the selected categories in sequence, totals docker's
+    /// SpaceReclaimed, then runs the disk reclaim so the freed blocks actually
+    /// return to the Mac (prune alone only frees space inside the VM).
+    func cleanUp(_ options: CleanupOptions) {
+        guard !cleanupBusy else { return }
+        guard let api = apiProvider() else {
+            cleanupResult = "Engine offline — start the VM first."
+            return
+        }
+        cleanupBusy = true
+        cleanupResult = ""
+
+        var steps: [(label: String, path: String)] = []
+        if options.stoppedContainers { steps.append(("stopped containers", "/containers/prune")) }
+        if options.unusedImages {
+            steps.append(("unused images", "/images/prune?filters=\(DockerAPIClient.unusedImagesFilter)"))
+        }
+        if options.buildCache { steps.append(("build cache", "/build/prune?all=1")) }
+        if options.unusedNetworks { steps.append(("unused networks", "/networks/prune")) }
+        if options.unusedVolumes { steps.append(("unused volumes", "/volumes/prune")) }
+
+        var remaining = steps
+        var totalBytes: UInt64 = 0
+        var firstError: String?
+        func next() {
+            guard let step = remaining.first else {
+                DispatchQueue.main.async { [weak self] in
+                    guard let self else { return }
+                    self.cleanupBusy = false
+                    self.cleanupResult = firstError.map { "Cleanup ran with an error: \($0)" }
+                        ?? "Freed \(DiskUsage.format(totalBytes)) inside the VM — reclaiming for your Mac…"
+                    self.refreshAll()
+                    // Give the space back to the host in the same click.
+                    if firstError == nil { self.reclaimDiskSpace() }
+                }
+                return
+            }
+            remaining.removeFirst()
+            api.prune(step.path) { error, reclaimed in
+                totalBytes += reclaimed
+                if let error, firstError == nil { firstError = "\(step.label): \(error)" }
+                next()
+            }
+        }
+        next()
+    }
+
+    // MARK: - Disk reclaim
+
+    /// Blocks freed inside the VM (deleted images, pruned build cache) stay
+    /// allocated in the sparse disk.img until the guest TRIMs them. `fstrim`
+    /// issues virtio discards and APFS punches the holes — measured 27 → 22 GB
+    /// on a real image (2026-09-21). Safe while docker runs; no restart needed.
+    func reclaimDiskSpace() {
+        guard !reclaimBusy else { return }
+        guard let connect = shellProvider() else {
+            reclaimResult = "Engine offline — start the VM first."
+            return
+        }
+        reclaimBusy = true
+        reclaimResult = ""
+        let image = DockzPaths().diskImage
+        let before = DiskUsage.allocatedBytes(at: image) ?? 0
+        GuestShellRunner.run(script: "fstrim -v /", connect: connect) { [weak self] output in
+            // Hole punching trails the discards slightly; measure after a beat.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                guard let self else { return }
+                self.reclaimBusy = false
+                guard output != nil else {
+                    self.reclaimResult = "Could not reach the guest shell."
+                    return
+                }
+                let after = DiskUsage.allocatedBytes(at: image) ?? before
+                let freed = before > after ? before - after : 0
+                self.reclaimResult = freed > 0
+                    ? "Freed \(DiskUsage.format(freed)) — now \(DiskUsage.format(after)) on your Mac."
+                    : "Nothing to reclaim — already compact (\(DiskUsage.format(after)) on your Mac)."
+            }
+        }
     }
 
     // MARK: - Network membership (multi-network containers)
