@@ -30,11 +30,19 @@ struct DockzSettings: Codable {
         return settings
     }
 
-    func save(to paths: DockzPaths) {
+    /// Returns false when the config could not be written (full/read-only
+    /// disk) — callers surface that instead of silently losing the settings.
+    @discardableResult
+    func save(to paths: DockzPaths) -> Bool {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        if let data = try? encoder.encode(self) {
-            try? data.write(to: paths.configFile)
+        guard let data = try? encoder.encode(self) else { return false }
+        do {
+            try data.write(to: paths.configFile)
+            return true
+        } catch {
+            NSLog("dockz: could not save settings — \(error.localizedDescription)")
+            return false
         }
     }
 }
