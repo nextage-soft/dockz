@@ -75,6 +75,7 @@ struct RunContainerFormView: View {
                                            addLabel: "Add label", text: $form.labelsText)
                     }
                     policyCard
+                    AdvancedSettingsCard(settings: $form.advanced)
                 }
                 .padding(16)
             }
