@@ -7,20 +7,31 @@ struct RunContainerFormView: View {
     enum Mode {
         case run
         case edit(DashboardStore.EditContainerPayload)
+        /// A copy of an existing container's config — the original is untouched.
+        case duplicate(RunContainerForm)
 
         var title: String {
-            if case .edit = self { return "Edit Container" }
-            return "Run Container"
+            switch self {
+            case .run: return "Run Container"
+            case .edit: return "Edit Container"
+            case .duplicate: return "Duplicate Container"
+            }
         }
 
         var subtitle: String {
-            if case .edit(let payload) = self { return "Recreates \(payload.originalName) with the new configuration" }
-            return "The image is pulled automatically if missing"
+            switch self {
+            case .run: return "The image is pulled automatically if missing"
+            case .edit(let payload): return "Recreates \(payload.originalName) with the new configuration"
+            case .duplicate: return "Runs a copy with this configuration — the original container is untouched"
+            }
         }
 
         var applyLabel: String {
-            if case .edit = self { return "Apply & Recreate" }
-            return "Run"
+            switch self {
+            case .run: return "Run"
+            case .edit: return "Apply & Recreate"
+            case .duplicate: return "Run Copy"
+            }
         }
     }
 
@@ -32,10 +43,10 @@ struct RunContainerFormView: View {
     init(store: DashboardStore, mode: Mode) {
         self.store = store
         self.mode = mode
-        if case .edit(let payload) = mode {
-            _form = State(initialValue: payload.form)
-        } else {
-            _form = State(initialValue: RunContainerForm())
+        switch mode {
+        case .edit(let payload): _form = State(initialValue: payload.form)
+        case .duplicate(let form): _form = State(initialValue: form)
+        case .run: _form = State(initialValue: RunContainerForm())
         }
     }
 
@@ -216,7 +227,7 @@ struct RunContainerFormView: View {
 
     private func apply() {
         switch mode {
-        case .run:
+        case .run, .duplicate:
             store.runContainer(form) { success in
                 if success { dismiss() }
             }

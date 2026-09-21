@@ -6,6 +6,7 @@ extension DashboardStore {
 
     func openDetail(for container: ContainerSummary) {
         selectedContainer = container
+        detailTab = 0
         containerDetail = nil
         containerStats = nil
         detailInspectJSON = ""

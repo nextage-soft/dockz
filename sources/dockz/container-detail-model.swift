@@ -29,6 +29,8 @@ struct ContainerDetail {
     let createdAt: String
     let command: String
     let workingDir: String
+    let user: String
+    let hostname: String
     let restartPolicy: String
     let ipAddress: String
     let environment: [String]
@@ -54,6 +56,8 @@ struct ContainerDetail {
         let cmd = (config["Cmd"] as? [String]) ?? []
         command = (entrypoint + cmd).joined(separator: " ")
         workingDir = config["WorkingDir"] as? String ?? ""
+        user = config["User"] as? String ?? ""
+        hostname = config["Hostname"] as? String ?? ""
         restartPolicy = ((hostConfig["RestartPolicy"] as? [String: Any])?["Name"] as? String) ?? "no"
 
         let joined = (network["Networks"] as? [String: [String: Any]] ?? [:])
