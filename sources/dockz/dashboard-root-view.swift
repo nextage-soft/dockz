@@ -5,6 +5,7 @@ import SwiftUI
 /// re-layout unpredictably when the sidebar collapses).
 struct DashboardRootView: View {
     enum Section: String, CaseIterable, Identifiable {
+        case monitor = "Monitor"
         case containers = "Containers"
         case stacks = "Stacks"
         case images = "Images"
@@ -19,6 +20,7 @@ struct DashboardRootView: View {
 
         var icon: String {
             switch self {
+            case .monitor: return "gauge"
             case .containers: return "shippingbox"
             case .stacks: return "rectangle.3.group"
             case .images: return "square.stack.3d.up"
@@ -37,16 +39,23 @@ struct DashboardRootView: View {
     @State private var selection: Section = .containers
 
     var body: some View {
-        HStack(spacing: 0) {
-            sidebar
-                .frame(width: sidebarCollapsed ? 58 : 208)
-            Divider()
-            VStack(spacing: 0) {
-                headerBar
+        ZStack {
+            HStack(spacing: 0) {
+                sidebar
+                    .frame(width: sidebarCollapsed ? 58 : 208)
                 Divider()
-                detailView
+                VStack(spacing: 0) {
+                    headerBar
+                    Divider()
+                    detailView
+                }
+                .frame(minWidth: 620, maxWidth: .infinity, maxHeight: .infinity)
             }
-            .frame(minWidth: 620, maxWidth: .infinity, maxHeight: .infinity)
+            // Immediate feedback for Stop/Start/Restart: cover the window while
+            // the VM transitions instead of leaving a stale dashboard in place.
+            if let transition = store.vmTransitionLabel {
+                vmTransitionOverlay(transition)
+            }
         }
         .frame(minHeight: 440)
         // Pull the content up into the (transparent) titlebar region so the
@@ -54,6 +63,9 @@ struct DashboardRootView: View {
         .ignoresSafeArea(.container, edges: .top)
         .sheet(item: $store.editPayload) { payload in
             RunContainerFormView(store: store, mode: .edit(payload))
+        }
+        .sheet(item: $store.duplicatePayload) { payload in
+            RunContainerFormView(store: store, mode: .duplicate(payload.form))
         }
         .alert("Docker error", isPresented: errorBinding) {
             Button("OK", role: .cancel) {}
@@ -72,6 +84,27 @@ struct DashboardRootView: View {
             }
         }
         .onDisappear { store.stopAutoRefresh() }
+    }
+
+    /// Blocks the whole window while the VM starts or stops — the moment of
+    /// feedback the Stop/Restart buttons previously lacked.
+    private func vmTransitionOverlay(_ label: String) -> some View {
+        ZStack {
+            Rectangle().fill(.ultraThinMaterial).ignoresSafeArea()
+            VStack(spacing: 14) {
+                ProgressView()
+                    .controlSize(.large)
+                Text(label)
+                    .font(.title3.weight(.semibold))
+                Text("This takes a few seconds…")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(28)
+            .background(RoundedRectangle(cornerRadius: 14).fill(.background.opacity(0.85)))
+        }
+        .transition(.opacity)
+        .animation(.easeInOut(duration: 0.15), value: label)
     }
 
     // MARK: - Header (draggable titlebar area)
@@ -154,7 +187,7 @@ struct DashboardRootView: View {
 
     @ViewBuilder
     private var sidebarFooter: some View {
-        let stateLabel = store.hostActions?.vmStateLabel() ?? "?"
+        let stateLabel = store.vmDisplayState
         let statusColor: Color = stateLabel == "Running"
             ? .green
             : (stateLabel.hasSuffix("…") ? .orange : .secondary)
@@ -242,6 +275,7 @@ struct DashboardRootView: View {
     @ViewBuilder
     private var detailView: some View {
         switch selection {
+        case .monitor: MonitorView(store: store)
         case .containers:
             if let selected = store.selectedContainer {
                 ContainerDetailView(store: store, container: store.containers.first(where: { $0.id == selected.id }) ?? selected)
@@ -261,6 +295,7 @@ struct DashboardRootView: View {
 
     private func count(for section: Section) -> Int? {
         switch section {
+        case .monitor: return nil
         case .containers: return store.containers.count
         case .stacks: return store.stackRows.isEmpty ? nil : store.stackRows.count
         case .images: return store.images.count

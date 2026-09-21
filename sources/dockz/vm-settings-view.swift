@@ -1,4 +1,5 @@
 import SwiftUI
+import Virtualization
 
 /// VM resource settings — edits ~/.dockz/config.json and restarts the VM.
 struct VMSettingsView: View {
@@ -12,8 +13,20 @@ struct VMSettingsView: View {
     @State private var snapshotName = ""
     @State private var snapshotRefresh = 0
     @State private var pendingRestore: DiskSnapshot?
+    @State private var launchAtLogin = LaunchAtLogin.isEnabled
+    @State private var launchAtLoginError: String?
+    @State private var showCleanup = false
 
     private var hardwareCPUs: Int { ProcessInfo.processInfo.processorCount }
+
+    /// Slider ceiling for VM memory. Bounded by physical RAM (a fixed 16 GiB
+    /// cap both starved big Macs and let small Macs pick more than they have —
+    /// VZ then clamped silently and the VM got less than the UI claimed).
+    private var hardwareMemoryGiB: Int {
+        let physical = Int(ProcessInfo.processInfo.physicalMemory / (1024 * 1024 * 1024))
+        let vzMax = Int(VZVirtualMachineConfiguration.maximumAllowedMemorySize / (1024 * 1024 * 1024))
+        return max(2, min(physical, vzMax))
+    }
 
     var body: some View {
         Form {
@@ -50,10 +63,10 @@ struct VMSettingsView: View {
                         .foregroundStyle(.secondary)
                 }
                 VStack(alignment: .leading) {
-                    Slider(value: $memoryGiB, in: 2...16, step: 1) {
+                    Slider(value: $memoryGiB, in: 2...Double(hardwareMemoryGiB), step: 1) {
                         Text("Memory")
                     }
-                    Text("\(Int(memoryGiB)) GiB")
+                    Text("\(Int(memoryGiB)) of \(hardwareMemoryGiB) GiB")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -61,19 +74,46 @@ struct VMSettingsView: View {
                     Slider(value: $diskLimitGB, in: 16...256, step: 8) {
                         Text("Disk limit")
                     }
-                    Text("\(Int(diskLimitGB)) GB — growing applies on restart; shrinking below the current size requires rebuilding the VM disk (`Dockz build-image --force`, wipes all docker data)")
+                    Text("\(Int(diskLimitGB)) GB — growing applies on restart")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                    // A limit below the current disk size cannot take effect —
+                    // ext4 can't be shrunk in place. Say so instead of silently
+                    // ignoring the setting (that silence read as "bug" before).
+                    if let apparent = DiskUsage.apparentBytes(at: DockzPaths().diskImage),
+                       UInt64(diskLimitGB) * 1_073_741_824 < apparent {
+                        Label("The disk is already \(DiskUsage.format(apparent)) — the limit can only grow it. Shrinking requires rebuilding the VM disk (wipes all docker data); reclaim free space below instead.",
+                              systemImage: "exclamationmark.triangle")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
                 }
             }
+            diskSpaceSection
             Section("Integration") {
                 Toggle("Share home directory (virtiofs bind mounts)", isOn: $shareHome)
                 Toggle("Rosetta (run linux/amd64 images)", isOn: $enableRosetta)
+                Toggle("Start DockZ at login", isOn: $launchAtLogin)
+                    .onChange(of: launchAtLogin) { enabled in
+                        do {
+                            try LaunchAtLogin.set(enabled)
+                            launchAtLoginError = nil
+                        } catch {
+                            launchAtLoginError = error.localizedDescription
+                            launchAtLogin = LaunchAtLogin.isEnabled
+                        }
+                    }
+                if let launchAtLoginError {
+                    Text(launchAtLoginError).font(.caption).foregroundStyle(.red)
+                } else if launchAtLogin {
+                    Text("The Docker engine comes up in the background — no window opens. Manage it in System Settings → Login Items.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
             }
             DockerCLISettingsSection(store: store)
             Section {
                 HStack {
-                    Text("VM: \(store.hostActions?.vmStateLabel() ?? "?")")
+                    Text("VM: \(store.vmDisplayState)")
                         .foregroundStyle(.secondary)
                     Spacer()
                     Button("Apply & Restart VM") { apply() }
@@ -153,6 +193,9 @@ struct VMSettingsView: View {
         }
         .formStyle(.grouped)
         .navigationTitle("Settings")
+        .sheet(isPresented: $showCleanup) {
+            CleanupSheetView(store: store)
+        }
         .confirmationDialog(
             "Restore snapshot \"\(pendingRestore?.name ?? "")\"?",
             isPresented: Binding(get: { pendingRestore != nil }, set: { if !$0 { pendingRestore = nil } }),
@@ -168,6 +211,52 @@ struct VMSettingsView: View {
         .onAppear {
             loadCurrent()
             if store.baseSystem.isEmpty { store.loadBaseSystemInfo() }
+        }
+    }
+
+    // MARK: - Disk space
+
+    /// Shows what disk.img really costs the Mac and reclaims space freed
+    /// inside the VM (docker prune leaves the sparse file fully allocated
+    /// until the guest TRIMs — fstrim over vsock, no restart needed).
+    private var diskSpaceSection: some View {
+        Section {
+            LabeledContent("On your Mac") {
+                Text(DiskUsage.summary(for: DockzPaths().diskImage) ?? "—")
+                    .foregroundStyle(.secondary)
+            }
+            HStack {
+                Button {
+                    store.reclaimDiskSpace()
+                } label: {
+                    if store.reclaimBusy {
+                        HStack(spacing: 6) {
+                            ProgressView().controlSize(.small)
+                            Text("Reclaiming…")
+                        }
+                    } else {
+                        Label("Reclaim Free Space", systemImage: "arrow.down.right.and.arrow.up.left")
+                    }
+                }
+                .disabled(store.reclaimBusy || !store.engineReady)
+                Button {
+                    showCleanup = true
+                } label: {
+                    Label("Clean Up…", systemImage: "paintbrush")
+                }
+                .disabled(!store.engineReady)
+                Spacer()
+            }
+            if !store.reclaimResult.isEmpty {
+                Text(store.reclaimResult)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Text("Space freed inside the VM (removed images, pruned build cache) is returned to your Mac. Tip: prune unused images first, then reclaim.")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        } header: {
+            Text("Disk space")
         }
     }
 

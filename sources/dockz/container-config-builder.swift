@@ -14,9 +14,13 @@ struct RunContainerForm {
     var labelsText = ""     // one KEY=VALUE per line
     var restartPolicy = "no"
     var network = ""
+    /// Networks joined in addition to `network` (create API takes one; the
+    /// store connects these right after create, before start).
+    var extraNetworks: [String] = []
     var privileged = false
     var memoryMiB = ""      // empty = unlimited
     var cpus = ""           // empty = unlimited
+    var advanced = AdvancedContainerSettings()
 }
 
 /// Builds Docker create-API bodies from the form — either from scratch (run
@@ -61,6 +65,10 @@ enum ContainerConfigBuilder {
         if !user.isEmpty { config["User"] = user }
         let workingDir = form.workingDir.trimmingCharacters(in: .whitespaces)
         if !workingDir.isEmpty { config["WorkingDir"] = workingDir }
+
+        var host = (config["HostConfig"] as? [String: Any]) ?? [:]
+        applyAdvanced(form.advanced, config: &config, hostConfig: &host)
+        config["HostConfig"] = host
         return config
     }
 
@@ -84,6 +92,11 @@ enum ContainerConfigBuilder {
         if splitWords(form.command) == nil { merged.removeValue(forKey: "Cmd") }
         if splitWords(form.entrypoint) == nil { merged.removeValue(forKey: "Entrypoint") }
         if form.user.trimmingCharacters(in: .whitespaces).isEmpty { merged.removeValue(forKey: "User") }
+        // A cleared health check falls back to the image's own (create without it).
+        if form.advanced.healthCommand.trimmingCharacters(in: .whitespaces).isEmpty
+            && !form.advanced.healthDisabled {
+            merged.removeValue(forKey: "Healthcheck")
+        }
         merged["HostConfig"] = hostConfig
         return merged
     }
@@ -135,11 +148,15 @@ enum ContainerConfigBuilder {
         } ?? "no"
         let mode = hostConfig["NetworkMode"] as? String ?? ""
         form.network = (mode == "default" || mode == "bridge") ? "" : mode
+        let joined = ((inspect["NetworkSettings"] as? [String: Any])?["Networks"] as? [String: Any]) ?? [:]
+        let primary = form.network.isEmpty ? "bridge" : form.network
+        form.extraNetworks = joined.keys.sorted().filter { $0 != primary }
         form.privileged = hostConfig["Privileged"] as? Bool ?? false
         let memory = hostConfig["Memory"] as? Int ?? 0
         form.memoryMiB = memory > 0 ? String(memory / (1024 * 1024)) : ""
         let nano = hostConfig["NanoCpus"] as? Int ?? 0
         form.cpus = nano > 0 ? String(Double(nano) / 1_000_000_000) : ""
+        form.advanced = advancedFromInspect(inspect)
         return form
     }
 

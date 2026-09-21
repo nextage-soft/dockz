@@ -15,6 +15,13 @@ struct ContainerDetail {
         var id: String { containerPort + hostBinding }
     }
 
+    /// One entry of NetworkSettings.Networks — a container can join several.
+    struct JoinedNetwork: Identifiable {
+        let name: String
+        let ipAddress: String
+        var id: String { name }
+    }
+
     let name: String
     let image: String
     let state: String
@@ -22,12 +29,15 @@ struct ContainerDetail {
     let createdAt: String
     let command: String
     let workingDir: String
+    let user: String
+    let hostname: String
     let restartPolicy: String
     let ipAddress: String
     let environment: [String]
     let labels: [String: String]
     let mounts: [Mount]
     let ports: [PortBinding]
+    let networks: [JoinedNetwork]
 
     init(dict: [String: Any]) {
         let config = dict["Config"] as? [String: Any] ?? [:]
@@ -46,11 +56,18 @@ struct ContainerDetail {
         let cmd = (config["Cmd"] as? [String]) ?? []
         command = (entrypoint + cmd).joined(separator: " ")
         workingDir = config["WorkingDir"] as? String ?? ""
+        user = config["User"] as? String ?? ""
+        hostname = config["Hostname"] as? String ?? ""
         restartPolicy = ((hostConfig["RestartPolicy"] as? [String: Any])?["Name"] as? String) ?? "no"
 
+        let joined = (network["Networks"] as? [String: [String: Any]] ?? [:])
+        networks = joined.keys.sorted().map {
+            JoinedNetwork(name: $0, ipAddress: joined[$0]?["IPAddress"] as? String ?? "")
+        }
+
         var ip = network["IPAddress"] as? String ?? ""
-        if ip.isEmpty, let networks = network["Networks"] as? [String: [String: Any]] {
-            ip = networks.values.compactMap { $0["IPAddress"] as? String }.first(where: { !$0.isEmpty }) ?? ""
+        if ip.isEmpty {
+            ip = networks.first(where: { !$0.ipAddress.isEmpty })?.ipAddress ?? ""
         }
         ipAddress = ip
 

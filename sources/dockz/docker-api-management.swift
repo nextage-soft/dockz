@@ -86,6 +86,62 @@ extension DockerAPIClient {
         expectSuccess(method: "POST", path: "/volumes/prune", completion: completion)
     }
 
+    // MARK: - Clean up (space-freeing prunes)
+
+    /// Runs one prune endpoint. Docker answers `{"…Deleted": […], "SpaceReclaimed": n}`;
+    /// the byte count is surfaced so the cleanup panel can total what was freed.
+    func prune(_ path: String, completion: @escaping (_ error: String?, _ reclaimedBytes: UInt64) -> Void) {
+        postJSON(path: path, json: nil) { result in
+            switch result {
+            case .failure(let error):
+                completion(error.localizedDescription, 0)
+            case .success(let response) where (200..<300).contains(response.status):
+                completion(nil, Self.spaceReclaimed(response.body))
+            case .success(let response):
+                let message = (try? JSONSerialization.jsonObject(with: response.body) as? [String: Any])?["message"] as? String
+                completion(message ?? "HTTP \(response.status)", 0)
+            }
+        }
+    }
+
+    /// `SpaceReclaimed` from a prune response; NSNumber bridges docker's
+    /// integer-or-float JSON number. Missing field (networks/prune) → 0.
+    static func spaceReclaimed(_ body: Data) -> UInt64 {
+        let object = try? JSONSerialization.jsonObject(with: body) as? [String: Any]
+        return (object?["SpaceReclaimed"] as? NSNumber)?.uint64Value ?? 0
+    }
+
+    /// `filters={"dangling":["false"]}` URL-encoded — widens /images/prune from
+    /// dangling-only to every image no container references ("old images").
+    static let unusedImagesFilter = "%7B%22dangling%22%3A%5B%22false%22%5D%7D"
+
+    // MARK: - Container ↔ network membership (a container can join several)
+
+    func connectNetwork(_ networkName: String, containerID: String, completion: @escaping (String?) -> Void) {
+        networkMembership("connect", network: networkName, containerID: containerID, completion: completion)
+    }
+
+    func disconnectNetwork(_ networkName: String, containerID: String, completion: @escaping (String?) -> Void) {
+        networkMembership("disconnect", network: networkName, containerID: containerID, completion: completion)
+    }
+
+    private func networkMembership(_ verb: String, network: String, containerID: String,
+                                   completion: @escaping (String?) -> Void) {
+        postJSON(path: "/networks/\(network)/\(verb)", json: ["Container": containerID]) { result in
+            switch result {
+            case .failure(let error):
+                completion(error.localizedDescription)
+            case .success(let response):
+                if (200..<300).contains(response.status) {
+                    completion(nil)
+                } else {
+                    let message = (try? JSONSerialization.jsonObject(with: response.body) as? [String: Any])?["message"] as? String
+                    completion(message ?? "HTTP \(response.status)")
+                }
+            }
+        }
+    }
+
     func fetchLogs(id: String, completion: @escaping (String) -> Void) {
         requestData(method: "GET", path: "/containers/\(id)/logs?stdout=true&stderr=true&tail=400") { result in
             guard case .success(let response) = result else {

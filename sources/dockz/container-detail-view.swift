@@ -5,16 +5,18 @@ struct ContainerDetailView: View {
     @ObservedObject var store: DashboardStore
     let container: ContainerSummary
 
+    @State private var confirmRemove = false
+
     var body: some View {
         VStack(spacing: 0) {
             header
+            actionBar
             Divider()
             Picker("", selection: $store.detailTab) {
                 Text("Overview").tag(0)
-                Text("Environment").tag(1)
-                Text("Mounts").tag(2)
-                Text("Logs").tag(3)
-                Text("Inspect").tag(4)
+                Text("Mounts").tag(1)
+                Text("Logs").tag(2)
+                Text("Inspect").tag(3)
             }
             .pickerStyle(.segmented)
             .padding(10)
@@ -22,6 +24,13 @@ struct ContainerDetailView: View {
             tabContent
         }
         .navigationTitle(container.name)
+        .confirmationDialog("Remove \(container.name)?", isPresented: $confirmRemove,
+                            titleVisibility: .visible) {
+            Button("Remove — data outside volumes is lost", role: .destructive) {
+                store.removeContainer(container)
+                store.closeDetail()
+            }
+        }
     }
 
     private var header: some View {
@@ -49,7 +58,6 @@ struct ContainerDetailView: View {
             }
             Spacer()
             statsBadge
-            actionButtons
         }
         .padding(12)
     }
@@ -65,71 +73,76 @@ struct ContainerDetailView: View {
         }
     }
 
-    private var actionButtons: some View {
-        HStack(spacing: 8) {
-            Button { store.beginEditContainer(container) } label: { Image(systemName: "pencil") }.help("Edit & Recreate")
-            if container.isRunning {
-                Button { store.openContainerTerminal(container) } label: { Image(systemName: "terminal") }.help("Open terminal (exec)")
-                Button { store.containerAction("stop", container) } label: { Image(systemName: "stop.fill") }.help("Stop")
-                Button { store.containerAction("restart", container) } label: { Image(systemName: "arrow.clockwise") }.help("Restart")
+    /// Portainer-style full action row: lifecycle verbs left, config actions right.
+    private var actionBar: some View {
+        HStack(spacing: 6) {
+            if container.isRunning || container.state == "paused" {
+                if container.state == "paused" {
+                    actionButton("Resume", icon: "play.fill") { store.containerAction("unpause", container) }
+                } else {
+                    actionButton("Pause", icon: "pause.fill") { store.containerAction("pause", container) }
+                    actionButton("Stop", icon: "stop.fill") { store.containerAction("stop", container) }
+                }
+                actionButton("Restart", icon: "arrow.clockwise") { store.containerAction("restart", container) }
+                actionButton("Kill", icon: "bolt.fill") { store.containerAction("kill", container) }
             } else {
-                Button { store.containerAction("start", container) } label: { Image(systemName: "play.fill") }.help("Start")
+                actionButton("Start", icon: "play.fill") { store.containerAction("start", container) }
             }
-            Button { store.reloadDetail() } label: { Image(systemName: "arrow.triangle.2.circlepath") }.help("Reload detail")
+            Button(role: .destructive) {
+                confirmRemove = true
+            } label: {
+                Label("Remove", systemImage: "trash")
+            }
+            .controlSize(.small)
+
+            Divider().frame(height: 16)
+
+            actionButton("Edit & Recreate", icon: "pencil") { store.beginEditContainer(container) }
+            actionButton("Duplicate", icon: "plus.square.on.square") { store.beginDuplicateContainer(container) }
+            if container.isRunning {
+                actionButton("Shell", icon: "terminal") { store.openContainerTerminal(container) }
+            }
+            Spacer()
+            Button {
+                store.reloadDetail()
+            } label: {
+                Image(systemName: "arrow.triangle.2.circlepath")
+            }
+            .buttonStyle(.borderless)
+            .help("Reload detail")
         }
-        .buttonStyle(.borderless)
+        .padding(.horizontal, 12)
+        .padding(.bottom, 8)
+    }
+
+    private func actionButton(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: icon)
+        }
+        .controlSize(.small)
     }
 
     @ViewBuilder
     private var tabContent: some View {
         switch store.detailTab {
         case 0: overviewTab
-        case 1: monospaceList(store.containerDetail?.environment ?? [], empty: "No environment variables")
-        case 2: mountsTab
-        case 3: logView(store.detailLogs)
+        case 1: mountsTab
+        case 2: logView(store.detailLogs)
         default: logView(store.detailInspectJSON)
         }
     }
 
+    @ViewBuilder
     private var overviewTab: some View {
-        Form {
-            if let detail = store.containerDetail {
-                Section("State") {
-                    LabeledContent("Status", value: detail.state)
-                    LabeledContent("Started", value: detail.startedAt)
-                    LabeledContent("Created", value: detail.createdAt)
-                    Picker("Restart policy", selection: restartPolicyBinding(current: detail.restartPolicy)) {
-                        Text("no").tag("no")
-                        Text("always").tag("always")
-                        Text("unless-stopped").tag("unless-stopped")
-                        Text("on-failure").tag("on-failure")
-                    }
-                }
-                Section("Runtime") {
-                    LabeledContent("Image", value: detail.image)
-                    LabeledContent("Command", value: detail.command.isEmpty ? "—" : detail.command)
-                    LabeledContent("Working dir", value: detail.workingDir.isEmpty ? "—" : detail.workingDir)
-                    LabeledContent("IP address", value: detail.ipAddress.isEmpty ? "—" : detail.ipAddress)
-                }
-                if !detail.ports.isEmpty {
-                    Section("Ports") {
-                        ForEach(detail.ports) { port in
-                            LabeledContent(port.containerPort, value: port.hostBinding)
-                        }
-                    }
-                }
-                if !detail.labels.isEmpty {
-                    Section("Labels") {
-                        ForEach(detail.labels.keys.sorted(), id: \.self) { key in
-                            LabeledContent(key, value: detail.labels[key] ?? "")
-                        }
-                    }
-                }
-            } else {
+        if let detail = store.containerDetail {
+            ContainerOverviewCards(store: store, container: container, detail: detail)
+        } else {
+            VStack {
+                Spacer()
                 Text("Loading…").foregroundStyle(.secondary)
+                Spacer()
             }
         }
-        .formStyle(.grouped)
     }
 
     private var mountsTab: some View {
@@ -147,27 +160,6 @@ struct ContainerDetailView: View {
                 Text("No mounts").foregroundStyle(.secondary)
             }
         }
-    }
-
-    private func monospaceList(_ items: [String], empty: String) -> some View {
-        List(items, id: \.self) { item in
-            Text(item)
-                .font(.system(.caption, design: .monospaced))
-                .textSelection(.enabled)
-        }
-        .overlay {
-            if items.isEmpty { Text(empty).foregroundStyle(.secondary) }
-        }
-    }
-
-    /// Selecting a new value applies it immediately via /containers/{id}/update.
-    private func restartPolicyBinding(current: String) -> Binding<String> {
-        Binding(
-            get: { current.isEmpty ? "no" : current },
-            set: { newValue in
-                if newValue != current { store.updateRestartPolicy(newValue) }
-            }
-        )
     }
 
     private func logView(_ text: String) -> some View {

@@ -125,6 +125,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func refreshMenu() {
         menuController?.update(display)
+        // Push the state into the dashboard too — its views must react the
+        // instant a Stop/Restart lands, not on the next poll.
+        dashboardStore.vmDisplayState = vmStateLabelText
+    }
+
+    private var vmStateLabelText: String {
+        switch display.vmState {
+        case .stopped: return "Stopped"
+        case .starting: return "Starting…"
+        case .running: return "Running"
+        case .stopping: return "Stopping…"
+        case .failed: return "Failed"
+        }
     }
 
     // MARK: - Dashboard
@@ -140,16 +153,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             currentSettings: { [weak self] in self?.settings ?? DockzSettings() },
             startVM: { [weak self] in self?.startVM() },
             stopVM: { [weak self] in self?.vmController?.stop() },
-            vmStateLabel: { [weak self] in
-                guard let self else { return "?" }
-                switch self.display.vmState {
-                case .stopped: return "Stopped"
-                case .starting: return "Starting…"
-                case .running: return "Running"
-                case .stopping: return "Stopping…"
-                case .failed: return "Failed"
-                }
-            },
             storagePath: { StorageLocation.currentRoot.path },
             changeStorage: { [weak self] parent in self?.changeStorageLocation(toParent: parent) },
             resetStorage: { [weak self] in self?.changeStorageLocation(toParent: nil) },
@@ -283,7 +286,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func applySettingsAndRestart(_ newSettings: DockzSettings) {
         settings = newSettings
-        settings.save(to: paths)
+        if !settings.save(to: paths) {
+            // Apply in memory anyway, but a silent save failure would surface
+            // as "settings randomly reverted after quit" — say it now.
+            presentError("Could not save settings",
+                         "The new values apply to this run but could not be written to \(paths.configFile.path); they will revert when DockZ quits.")
+        }
         if let vmController {
             vmController.stop { [weak self] in self?.startVM() }
         } else {
