@@ -19,27 +19,52 @@ final class DockerAPIClient {
     }
 
     /// Published host ports of all running containers, split by protocol.
-    func listPublishedPorts(completion: @escaping (_ tcp: Set<UInt16>, _ udp: Set<UInt16>) -> Void) {
+    /// Published ports mapped to the host address they should listen on.
+    typealias PortBindings = [UInt16: String]
+
+    func listPublishedPorts(completion: @escaping (_ tcp: PortBindings, _ udp: PortBindings) -> Void) {
         get("/containers/json") { result in
             guard case .success(let response) = result, response.status == 200,
                   let containers = try? JSONSerialization.jsonObject(with: response.body) as? [[String: Any]] else {
-                completion([], [])
+                completion([:], [:])
                 return
             }
-            var tcp: Set<UInt16> = []
-            var udp: Set<UInt16> = []
-            for container in containers {
-                let portEntries = container["Ports"] as? [[String: Any]] ?? []
-                for entry in portEntries {
-                    guard let publicPort = entry["PublicPort"] as? Int,
-                          let value = UInt16(exactly: publicPort) else { continue }
-                    switch entry["Type"] as? String {
-                    case "udp": udp.insert(value)
-                    default: tcp.insert(value)
-                    }
-                }
+            let bindings = Self.publishedPortBindings(containers)
+            completion(bindings.tcp, bindings.udp)
+        }
+    }
+
+    /// Mirrors docker's own semantics: `-p 8080:80` publishes on every
+    /// interface (0.0.0.0), `-p 127.0.0.1:8080:80` on loopback only. Docker
+    /// lists the same port once per address family ("0.0.0.0" and "::"); any
+    /// wildcard entry wins over a loopback one for the same port.
+    static func publishedPortBindings(_ containers: [[String: Any]]) -> (tcp: PortBindings, udp: PortBindings) {
+        var tcp: PortBindings = [:]
+        var udp: PortBindings = [:]
+        for container in containers {
+            for entry in container["Ports"] as? [[String: Any]] ?? [] {
+                guard let publicPort = entry["PublicPort"] as? Int,
+                      let port = UInt16(exactly: publicPort) else { continue }
+                let address = listenAddress(forDockerHostIP: entry["IP"] as? String ?? "")
+                let isUDP = (entry["Type"] as? String) == "udp"
+                let existing = isUDP ? udp[port] : tcp[port]
+                let chosen = existing == wildcardAddress ? wildcardAddress : address
+                if isUDP { udp[port] = chosen } else { tcp[port] = chosen }
             }
-            completion(tcp, udp)
+        }
+        return (tcp, udp)
+    }
+
+    static let wildcardAddress = "0.0.0.0"
+    static let loopbackAddress = "127.0.0.1"
+
+    /// Loopback stays loopback; everything else (wildcard, IPv6 wildcard, or a
+    /// specific guest-side address that has no meaning on the Mac) listens on
+    /// all interfaces, like `docker run -p` does by default.
+    static func listenAddress(forDockerHostIP ip: String) -> String {
+        switch ip {
+        case "127.0.0.1", "::1": return loopbackAddress
+        default: return wildcardAddress
         }
     }
 

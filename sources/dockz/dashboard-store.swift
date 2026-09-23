@@ -17,6 +17,9 @@ final class DashboardStore: ObservableObject {
         var createSnapshot: (String) -> Void = { _ in }
         var restoreSnapshot: (String) -> Void = { _ in }
         var deleteSnapshot: (String) -> Void = { _ in }
+        /// Saves the VM time zone ("" = follow the Mac) and applies it live;
+        /// completion carries an error text or nil.
+        var applyTimeZone: (String, @escaping (String?) -> Void) -> Void = { _, done in done(nil) }
     }
 
     @Published var containers: [ContainerSummary] = []

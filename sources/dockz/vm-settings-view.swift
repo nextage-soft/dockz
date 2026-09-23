@@ -93,6 +93,7 @@ struct VMSettingsView: View {
             Section("Integration") {
                 Toggle("Share home directory (virtiofs bind mounts)", isOn: $shareHome)
                 Toggle("Rosetta (run linux/amd64 images)", isOn: $enableRosetta)
+                TimeZoneSettingRow(store: store)
                 Toggle("Start DockZ at login", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { enabled in
                         do {

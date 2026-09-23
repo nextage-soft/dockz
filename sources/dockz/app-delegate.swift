@@ -117,10 +117,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func bringupUpdated() {
         guard let bringup else { return }
+        // Guest clock zone is not persisted in a way we control across image
+        // rebuilds, so push it every time the engine comes up.
+        if bringup.dockerReady && !display.dockerReady { pushGuestTimeZone(completion: nil) }
         display.dockerReady = bringup.dockerReady
         display.guestIP = bringup.guestIP
         display.forwardedPorts = bringup.forwardedPorts
         refreshMenu()
+    }
+
+    private func pushGuestTimeZone(completion: ((String?) -> Void)?) {
+        guard let connect = vmController?.vsockConnector() else {
+            completion?("VM is not running")
+            return
+        }
+        GuestTimeZone.apply(setting: settings.timeZone, connect: connect) { error in
+            DispatchQueue.main.async { completion?(error) }
+        }
     }
 
     private func refreshMenu() {
@@ -162,6 +175,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             deleteSnapshot: { [weak self] id in
                 guard let self else { return }
                 SnapshotStore.delete(self.paths, id: id)
+            },
+            applyTimeZone: { [weak self] zone, done in
+                guard let self else { return }
+                self.settings.timeZone = zone
+                self.settings.save(to: self.paths)
+                // Stopped VM: saved now, applied at the next boot.
+                guard self.display.dockerReady else { return done(nil) }
+                self.pushGuestTimeZone(completion: done)
             }
         )
     }
