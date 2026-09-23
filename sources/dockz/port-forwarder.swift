@@ -1,14 +1,17 @@
 import Foundation
 import Network
 
-/// Mirrors published container ports on localhost, relaying connections to the
+/// Mirrors published container ports on the Mac, relaying connections to the
 /// guest VM's IP address (the same trick Docker Desktop uses so that
-/// `docker run -p 8080:80` is reachable at localhost:8080). Handles both TCP
-/// and UDP published ports.
+/// `docker run -p 8080:80` is reachable at localhost:8080 — and, like docker,
+/// from the network too, unless the port was published on 127.0.0.1).
+/// Handles both TCP and UDP published ports.
 final class PortForwarder {
     private let queue = DispatchQueue(label: "com.nextagesoft.dockz.port-forwarder")
     private var tcpListeners: [UInt16: NWListener] = [:]
     private var udpListeners: [UInt16: NWListener] = [:]
+    /// Address each live listener is bound to, so a binding change rebinds.
+    private var boundAddresses: [String: String] = [:]
     private var guestIP: String?
 
     /// Fires on an arbitrary queue with the sorted list of forwarded TCP ports
@@ -19,7 +22,7 @@ final class PortForwarder {
         queue.async { self.guestIP = ip }
     }
 
-    func sync(tcp: Set<UInt16>, udp: Set<UInt16>) {
+    func sync(tcp: DockerAPIClient.PortBindings, udp: DockerAPIClient.PortBindings) {
         queue.async {
             self.syncLocked(desired: tcp, listeners: &self.tcpListeners, isUDP: false)
             self.syncLocked(desired: udp, listeners: &self.udpListeners, isUDP: true)
@@ -33,32 +36,36 @@ final class PortForwarder {
             self.udpListeners.values.forEach { $0.cancel() }
             self.tcpListeners.removeAll()
             self.udpListeners.removeAll()
+            self.boundAddresses.removeAll()
             self.onPortsChanged?([])
         }
     }
 
     // MARK: - Queue-confined
 
-    private func syncLocked(desired: Set<UInt16>, listeners: inout [UInt16: NWListener], isUDP: Bool) {
-        let current = Set(listeners.keys)
-        guard current != desired else { return }
-        for port in current.subtracting(desired) {
-            listeners.removeValue(forKey: port)?.cancel()
+    private func syncLocked(desired: DockerAPIClient.PortBindings,
+                            listeners: inout [UInt16: NWListener], isUDP: Bool) {
+        let proto = isUDP ? "udp" : "tcp"
+        for (port, listener) in listeners where desired[port] != boundAddresses["\(proto)/\(port)"] {
+            listener.cancel()
+            listeners.removeValue(forKey: port)
+            boundAddresses.removeValue(forKey: "\(proto)/\(port)")
         }
-        for port in desired.subtracting(current) {
-            if let listener = startListener(on: port, isUDP: isUDP) {
+        for (port, address) in desired where listeners[port] == nil {
+            if let listener = startListener(on: port, address: address, isUDP: isUDP) {
                 listeners[port] = listener
+                boundAddresses["\(proto)/\(port)"] = address
             }
         }
     }
 
-    private func startListener(on port: UInt16, isUDP: Bool) -> NWListener? {
+    private func startListener(on port: UInt16, address: String, isUDP: Bool) -> NWListener? {
         guard let nwPort = NWEndpoint.Port(rawValue: port) else { return nil }
         let parameters: NWParameters = isUDP ? .udp : .tcp
         parameters.allowLocalEndpointReuse = true
-        parameters.requiredLocalEndpoint = NWEndpoint.hostPort(host: "127.0.0.1", port: nwPort)
+        parameters.requiredLocalEndpoint = NWEndpoint.hostPort(host: NWEndpoint.Host(address), port: nwPort)
         guard let listener = try? NWListener(using: parameters) else {
-            NSLog("dockz: cannot listen on localhost:%d/%@ (in use?)", Int(port), isUDP ? "udp" : "tcp")
+            NSLog("dockz: cannot listen on %@:%d/%@ (in use?)", address, Int(port), isUDP ? "udp" : "tcp")
             return nil
         }
         listener.newConnectionHandler = { [weak self] connection in

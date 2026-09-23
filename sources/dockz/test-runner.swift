@@ -25,6 +25,8 @@ enum TestRunner {
         cleanupPrune()
         monitorParsing()
         advancedSettings()
+        portBindAddresses()
+        guestTimeZone()
 
         print("")
         if failures.isEmpty {
@@ -160,6 +162,46 @@ enum TestRunner {
             .hasPrefix("kubeadm join") == true, "k8s join capture")
         expect(MachineDistro.by(id: "alpine-3.22")?.supportedEngines == [.k3s], "alpine → k3s only")
         expect(MachineDistro.by(id: "debian-13")?.supportedEngines == [.k3s, .k8s], "debian → k3s+k8s")
+    }
+
+    /// Forwarded ports listen where docker published them: wildcard by
+    /// default (reachable from the LAN), loopback only when asked for.
+    private static func portBindAddresses() {
+        let containers: [[String: Any]] = [
+            ["Ports": [
+                ["IP": "0.0.0.0", "PublicPort": 8080, "PrivatePort": 80, "Type": "tcp"],
+                ["IP": "::", "PublicPort": 8080, "PrivatePort": 80, "Type": "tcp"],
+                ["IP": "127.0.0.1", "PublicPort": 5432, "PrivatePort": 5432, "Type": "tcp"],
+                ["IP": "0.0.0.0", "PublicPort": 5353, "PrivatePort": 53, "Type": "udp"],
+                ["PrivatePort": 9000, "Type": "tcp"],
+            ]],
+        ]
+        let bindings = DockerAPIClient.publishedPortBindings(containers)
+        expectEqual(bindings.tcp[8080], "0.0.0.0", "port: -p 8080:80 listens on all interfaces")
+        expectEqual(bindings.tcp[5432], "127.0.0.1", "port: -p 127.0.0.1:… stays loopback")
+        expectEqual(bindings.udp[5353], "0.0.0.0", "port: udp wildcard")
+        expectEqual(bindings.tcp.count, 2, "port: unpublished (no PublicPort) ignored")
+
+        // Loopback listed first must not shadow a later wildcard entry.
+        let mixed = DockerAPIClient.publishedPortBindings([["Ports": [
+            ["IP": "127.0.0.1", "PublicPort": 3000, "Type": "tcp"],
+            ["IP": "0.0.0.0", "PublicPort": 3000, "Type": "tcp"],
+        ]]])
+        expectEqual(mixed.tcp[3000], "0.0.0.0", "port: wildcard wins over loopback")
+        expectEqual(DockerAPIClient.listenAddress(forDockerHostIP: "::1"), "127.0.0.1", "port: ipv6 loopback")
+    }
+
+    /// VM time zone: host TZif is reused, unknown ids are rejected before any
+    /// path or script is built from them.
+    private static func guestTimeZone() {
+        expectEqual(GuestTimeZone.effectiveIdentifier(setting: ""), TimeZone.current.identifier,
+                    "tz: empty follows the Mac")
+        expectEqual(GuestTimeZone.effectiveIdentifier(setting: "Asia/Tokyo"), "Asia/Tokyo", "tz: explicit zone")
+        expect(GuestTimeZone.zoneData(for: "Asia/Ho_Chi_Minh") != nil, "tz: host zoneinfo readable as TZif")
+        expect(GuestTimeZone.zoneData(for: "../../etc/passwd") == nil, "tz: path traversal rejected")
+        expect(GuestTimeZone.zoneData(for: "Not/AZone") == nil, "tz: unknown zone rejected")
+        let script = GuestTimeZone.installScript(identifier: "UTC", zoneData: Data("TZif".utf8))
+        expect(script.contains("> /etc/localtime") && script.contains("DOCKZ-TZ"), "tz: script writes localtime")
     }
 
     /// Advanced form settings must round-trip through inspect → form → create

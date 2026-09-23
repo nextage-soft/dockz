@@ -8,6 +8,8 @@ struct DockzSettings: Codable {
     var diskLimitGB: Int = 64
     var shareHomeDirectory: Bool = true
     var enableRosetta: Bool = true
+    /// IANA zone for the VM; empty = follow this Mac.
+    var timeZone: String = ""
 
     init() {}
 
@@ -18,6 +20,7 @@ struct DockzSettings: Codable {
         diskLimitGB = try container.decodeIfPresent(Int.self, forKey: .diskLimitGB) ?? 64
         shareHomeDirectory = try container.decodeIfPresent(Bool.self, forKey: .shareHomeDirectory) ?? true
         enableRosetta = try container.decodeIfPresent(Bool.self, forKey: .enableRosetta) ?? true
+        timeZone = try container.decodeIfPresent(String.self, forKey: .timeZone) ?? ""
     }
 
     static func load(from paths: DockzPaths) -> DockzSettings {
