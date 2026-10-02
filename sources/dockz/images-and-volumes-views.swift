@@ -5,10 +5,15 @@ struct ImagesListView: View {
     @State private var pullReference = ""
     @State private var searchText = ""
     @State private var pendingRemoval: ImageSummary?
+    @AppStorage("dockz.list.images.scope") private var scope = "all"
+    @AppStorage("dockz.list.images.sort") private var sort = "name"
+
+    private var filter: ListFilter<ImageSummary> {
+        ListFilters.images(usedImageIDs: Set(store.containers.map(\.imageID)))
+    }
 
     private var filtered: [ImageSummary] {
-        guard !searchText.isEmpty else { return store.images }
-        return store.images.filter { $0.repoTag.lowercased().contains(searchText.lowercased()) }
+        filter.apply(store.images, scope: scope, query: searchText, sort: sort)
     }
 
     var body: some View {
@@ -16,8 +21,11 @@ struct ImagesListView: View {
             ListHeaderBar(
                 summary: "\(store.images.count) \(store.images.count == 1 ? "image" : "images")",
                 prompt: "Filter images",
-                searchText: $searchText
+                searchText: $searchText,
+                scopes: filter.options(for: store.images, query: searchText),
+                scope: $scope
             ) {
+                ListSortMenu(options: filter.sortOptions, selection: $sort)
                 Button("Prune dangling") { store.pruneImages() }
                     .disabled(store.busyIDs.contains("prune-images"))
             }
@@ -61,7 +69,7 @@ struct ImagesListView: View {
         }
         .listStyle(.inset)
         .confirmationDialog(
-            "Remove image \"\(pendingRemoval?.repoTag ?? "")\"?",
+            "Remove image \"\(pendingRemoval?.repoTag ?? "")\"\(store.targetSuffix)?",
             isPresented: Binding(get: { pendingRemoval != nil }, set: { if !$0 { pendingRemoval = nil } }),
             titleVisibility: .visible
         ) {
@@ -76,6 +84,8 @@ struct ImagesListView: View {
         .overlay {
             if store.images.isEmpty {
                 Text("No images").foregroundStyle(.secondary)
+            } else if filtered.isEmpty {
+                Text("No images match").foregroundStyle(.secondary)
             }
         }
         .navigationTitle("Images")
@@ -108,26 +118,37 @@ struct ImagesListView: View {
 struct VolumesListView: View {
     @ObservedObject var store: DashboardStore
     @State private var pendingRemoval: VolumeSummary?
+    @State private var searchText = ""
+    @AppStorage("dockz.list.volumes.scope") private var scope = "all"
+    @AppStorage("dockz.list.volumes.sort") private var sort = "name"
+
+    private var filter: ListFilter<VolumeSummary> {
+        ListFilters.volumes(usedVolumeNames: Set(store.containers.flatMap(\.volumeNames)))
+    }
+
+    private var filtered: [VolumeSummary] {
+        filter.apply(store.volumes, scope: scope, query: searchText, sort: sort)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Text("\(store.volumes.count) \(store.volumes.count == 1 ? "volume" : "volumes")")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                Spacer()
+            ListHeaderBar(
+                summary: "\(store.volumes.count) \(store.volumes.count == 1 ? "volume" : "volumes")",
+                prompt: "Filter volumes",
+                searchText: $searchText,
+                scopes: filter.options(for: store.volumes, query: searchText),
+                scope: $scope
+            ) {
                 Button("Prune unused") { store.pruneVolumes() }
                     .disabled(store.busyIDs.contains("prune-volumes"))
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
             Divider()
             volumesList
         }
     }
 
     private var volumesList: some View {
-        List(store.volumes) { volume in
+        List(filtered) { volume in
             HStack(spacing: 12) {
                 Image(systemName: "externaldrive.fill")
                     .font(.title3)
@@ -157,7 +178,7 @@ struct VolumesListView: View {
         }
         .listStyle(.inset)
         .confirmationDialog(
-            "Remove volume \"\(pendingRemoval?.name ?? "")\"?",
+            "Remove volume \"\(pendingRemoval?.name ?? "")\"\(store.targetSuffix)?",
             isPresented: Binding(get: { pendingRemoval != nil }, set: { if !$0 { pendingRemoval = nil } }),
             titleVisibility: .visible
         ) {
@@ -169,6 +190,8 @@ struct VolumesListView: View {
         .overlay {
             if store.volumes.isEmpty {
                 Text("No volumes").foregroundStyle(.secondary)
+            } else if filtered.isEmpty {
+                Text("No volumes match").foregroundStyle(.secondary)
             }
         }
         .navigationTitle("Volumes")

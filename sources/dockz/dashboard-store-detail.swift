@@ -59,11 +59,14 @@ extension DashboardStore {
                 DispatchQueue.main.async { [weak self] in
                     guard let self else { return }
                     self.cleanupBusy = false
+                    let local = self.environments.isLocal
+                    let place = self.environments.selected.map { "on \($0.name)" } ?? "inside the VM"
                     self.cleanupResult = firstError.map { "Cleanup ran with an error: \($0)" }
-                        ?? "Freed \(DiskUsage.format(totalBytes)) inside the VM — reclaiming for your Mac…"
+                        ?? "Freed \(DiskUsage.format(totalBytes)) \(place)" + (local ? " — reclaiming for your Mac…" : ".")
                     self.refreshAll()
-                    // Give the space back to the host in the same click.
-                    if firstError == nil { self.reclaimDiskSpace() }
+                    // Only the local VM's sparse disk lives on this Mac; give its
+                    // space back in the same click. A remote host's disk is its own.
+                    if firstError == nil && local { self.reclaimDiskSpace() }
                 }
                 return
             }

@@ -50,7 +50,8 @@ struct MonitorView: View {
             .padding(16)
         }
         .onAppear {
-            monitor.start(api: store.apiProvider, shell: store.shellProvider,
+            monitor.start(api: { [weak store] in store?.apiProvider() },
+                          shell: { [weak store] in store?.shellProvider() },
                           containers: { [weak store] in store?.containers ?? [] })
         }
         .onDisappear { monitor.stop() }
@@ -59,7 +60,45 @@ struct MonitorView: View {
 
     // MARK: - Vitals
 
+    @ViewBuilder
     private var vitalsGrid: some View {
+        if store.environments.isLocal { localVitalsGrid } else { remoteVitalsGrid }
+    }
+
+    /// A remote engine exposes no host-wide usage through the Docker API, so
+    /// these cards sum the per-container samples against the host's capacity
+    /// from /info. Same four-card frame as the local grid.
+    private var remoteVitalsGrid: some View {
+        let info = store.engineInfo
+        let cpuSum = monitor.rows.reduce(0) { $0 + $1.cpuPercent }
+        let memorySum = monitor.rows.reduce(UInt64(0)) { $0 + $1.memUsedBytes }
+        let cores = max(info?.cpuCount ?? 1, 1)
+        return LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 4), spacing: 10) {
+            metricCard("Containers CPU", value: String(format: "%.0f%%", cpuSum / Double(cores))) {
+                usageBar(fraction: cpuSum / Double(cores) / 100, color: .blue)
+            } footer: {
+                info.map { "of \($0.cpuCount) cores" } ?? "—"
+            }
+            metricCard("Containers memory", value: Self.bytes(memorySum)) {
+                usageBar(fraction: info.map { $0.memoryBytes > 0 ? Double(memorySum) / Double($0.memoryBytes) : 0 } ?? 0,
+                         color: .green)
+            } footer: {
+                info.map { "of \(Self.bytes($0.memoryBytes)) on the host" } ?? "—"
+            }
+            metricCard("Docker data", value: monitor.breakdown.map { Self.bytes($0.totalBytes) } ?? "—") {
+                Color.clear
+            } footer: {
+                "images, containers, volumes, cache"
+            }
+            metricCard("Engine", value: info.map { "\($0.containersRunning) running" } ?? "—") {
+                Color.clear
+            } footer: {
+                info.map { "Docker \($0.serverVersion) · \($0.operatingSystem)" } ?? "unreachable"
+            }
+        }
+    }
+
+    private var localVitalsGrid: some View {
         // Four equal columns — adaptive sizing let the cards drift apart.
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 4), spacing: 10) {
             metricCard("VM CPU", value: String(format: "%.0f%%", monitor.vmCPUPercent)) {
@@ -109,7 +148,7 @@ struct MonitorView: View {
 
     private var memorySummary: String {
         guard let vm = monitor.vm, vm.memTotalKiB > 0 else { return "—" }
-        let used = (vm.memTotalKiB - vm.memAvailableKiB) * 1024
+        let used = vm.memUsedKiB * 1024
         return "\(Self.bytes(used)) / \(Self.bytes(vm.memTotalKiB * 1024))"
     }
 

@@ -29,7 +29,7 @@ final class DockerBringupCoordinator {
 
     func start() {
         let connect = vm.vsockConnector()
-        api = DockerAPIClient(connect: connect)
+        api = DockerAPIClient(endpoint: .vsock(connect))
 
         let bridge = DockerSocketBridge(socketPath: paths.dockerSocket.path, connectVsock: connect)
         do {

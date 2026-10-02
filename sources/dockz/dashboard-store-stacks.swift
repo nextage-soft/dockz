@@ -132,8 +132,7 @@ extension DashboardStore {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: docker.path)
         process.arguments = arguments
-        process.environment = DockerCLI.environment(for: docker,
-                                                    socketPath: DockzPaths().dockerSocket.path)
+        process.environment = DockerCLI.environment(for: docker, endpoint: currentEndpoint)
 
         let pipe = Pipe()
         process.standardOutput = pipe

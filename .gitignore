@@ -1,7 +1,8 @@
 # ---- Swift Package Manager ----
 .build/
 .swiftpm/
-# No external dependencies → no Package.resolved to track.
+# Package.resolved IS tracked: it pins swift-nio / swift-nio-ssl and their
+# transitive packages so every build resolves the same versions.
 
 # ---- Build output (app bundle, generated icon) ----
 build/

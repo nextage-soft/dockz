@@ -5,14 +5,21 @@ import SwiftUI
 /// the common path stays short.
 struct AdvancedSettingsCard: View {
     @Binding var settings: AdvancedContainerSettings
+    /// Windows engines have no Linux capabilities, init, shm or sysctls.
+    var isWindowsEngine = false
 
     var body: some View {
         FormSectionCard(title: "Advanced", icon: "gearshape.2") {
             VStack(alignment: .leading, spacing: 8) {
                 DisclosureGroup("Network identity") { networkGroup.padding(.top, 6) }
                 DisclosureGroup("Health check") { healthGroup.padding(.top, 6) }
-                DisclosureGroup(capabilitiesTitle) { capabilitiesGroup.padding(.top, 6) }
-                DisclosureGroup("Runtime & devices") { runtimeGroup.padding(.top, 6) }
+                if isWindowsEngine {
+                    Text("Capabilities, init, shared memory, devices and sysctls are Linux-only and hidden for this Windows engine.")
+                        .font(.caption).foregroundStyle(.secondary)
+                } else {
+                    DisclosureGroup(capabilitiesTitle) { capabilitiesGroup.padding(.top, 6) }
+                    DisclosureGroup("Runtime & devices") { runtimeGroup.padding(.top, 6) }
+                }
                 DisclosureGroup("Logging") { loggingGroup.padding(.top, 6) }
             }
         }

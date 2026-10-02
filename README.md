@@ -8,8 +8,8 @@ plus a Docker Desktop–style dashboard and Multipass-style Linux machines.</p>
 <p align="center">
   <img src="https://img.shields.io/badge/platform-macOS%2015%2B%20·%20Apple%20Silicon-black" alt="platform">
   <img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="license">
-  <img src="https://img.shields.io/badge/Swift%20dependencies-none-success" alt="dependencies">
-  <img src="https://img.shields.io/badge/app%20size-~5%20MB-orange" alt="size">
+  <img src="https://img.shields.io/badge/Swift%20dependencies-Apple%20swift--nio--ssl%20only-success" alt="dependencies">
+  <img src="https://img.shields.io/badge/app%20size-~8%20MB-orange" alt="size">
 </p>
 
 <p align="center">
@@ -21,7 +21,7 @@ plus a Docker Desktop–style dashboard and Multipass-style Linux machines.</p>
 </p>
 
 Built entirely on Apple's **Virtualization.framework** — no external runtimes,
-no Swift dependencies, fully offline builds. The engine is exposed to the host
+one Swift dependency (Apple's own swift-nio-ssl, pinned exactly). The engine is exposed to the host
 as a normal Docker context: `docker`, `docker compose`, and buildx just work.
 
 <p align="center">
@@ -46,6 +46,7 @@ as a normal Docker context: `docker`, `docker compose`, and buildx just work.
 | --- | --- |
 | 🐳&nbsp;**Real Docker engine** | Genuine `dockerd` in Alpine Linux, exposed as the `dockz` context — `docker`, `docker compose`, buildx all work. |
 | 🖥️&nbsp;**Management dashboard** | Docker Desktop / Portainer style: containers, images, volumes, networks, registries, compose **stacks** — create/edit forms, live logs, stats, inspect. |
+| 🌐&nbsp;**Multiple environments** | Manage other Docker engines too — remote hosts over **SSH** or **mutual TLS**, or another engine's socket on this Mac — and switch every tab between them from the sidebar (⌘1…⌘9). Management only: nothing is joined or shared. |
 | 📦&nbsp;**Linux machines** | Multipass-style VMs (Alpine / Debian / Ubuntu, ARM64) over SSH, with one-click **k3s / k8s** master/node cluster templates. |
 | 🚀&nbsp;**One-window onboarding** | First launch builds the guest image in a throwaway netboot VM and installs the CLI in parallel — when it closes, `docker ps` works. |
 | 🔌&nbsp;**Auto port forwarding** | Published TCP + UDP ports mirrored on `localhost` by watching the Docker events API. |
@@ -53,17 +54,17 @@ as a normal Docker context: `docker`, `docker compose`, and buildx just work.
 | 🔄&nbsp;**Rosetta** | Run `linux/amd64` images on Apple Silicon. |
 | ⚙️&nbsp;**Configurable** | CPUs, memory, disk limit, `$HOME` virtiofs share, relocatable data folder (external SSD friendly). |
 | 🧰&nbsp;**Docker CLI on demand** | No Homebrew: official static `docker` + compose fetched checksum-verified, terminal wired via a removable `~/.zshrc` block that steps aside for your own install. |
-| 🪶&nbsp;**Zero dependencies** | Only Apple frameworks and in-repo code; builds offline with just the Command Line Tools. |
+| 🪶&nbsp;**Minimal dependencies** | Apple frameworks, in-repo code, and Apple's open-source swift-nio-ssl (exact pins) for Secure Enclave–backed TLS keys; builds with just the Command Line Tools. |
 
 ## Why DockZ?
 
-**One 5 MB native app replaces the whole stack**: Docker engine + Docker
+**One 8 MB native app replaces the whole stack**: Docker engine + Docker
 Desktop–style dashboard + Multipass-style Linux VMs + k3s/k8s playgrounds — free,
 Apache-2.0, no accounts, no telemetry, no Electron.
 
 What makes it different from the usual suspects:
 
-- **Genuinely tiny and native.** The app bundle is ~5 MB of Swift/SwiftUI on
+- **Genuinely tiny and native.** The app bundle is ~8 MB of Swift/SwiftUI on
   Apple's Virtualization.framework. No Electron shell, no bundled node/qemu, no
   background updater. The 64 GB VM disk is APFS-sparse — a fresh engine really
   occupies ~1.3 GB.
@@ -85,16 +86,18 @@ What makes it different from the usual suspects:
   Settings), Rosetta for `linux/amd64` images, private-registry credentials in
   the Keychain, graceful VM shutdown, and a plain-text `host.log` when you want
   to know exactly what the VM lifecycle did.
-- **Auditable by one person in one sitting.** Zero external Swift dependencies —
-  only Apple frameworks and the code in this repo. It builds offline with just
-  the Command Line Tools.
+- **Auditable by one person in one sitting.** One external Swift dependency —
+  Apple's swift-nio / swift-nio-ssl, pinned exactly (`Package.resolved`) and
+  used only so TLS environments can keep their key in the Secure Enclave.
+  Everything else is Apple frameworks and the code in this repo. It builds
+  with just the Command Line Tools (the first build fetches the packages).
 
 ### Comparison <sub>(macOS · Apple Silicon · mid-2026)</sub>
 
 |                            |     **DockZ**      | Docker Desktop  |    OrbStack     |  Colima (Lima)  |    Multipass    |
 | -------------------------- | :----------------: | :-------------: | :-------------: | :-------------: | :-------------: |
 | 💵 License / price         | **Apache 2.0, free** | 💰 paid ≥ 250 staff | 💰 closed, paid commercial | MIT, free | free (Canonical) |
-| 💾 App on disk             |     **~5 MB**      |    ~1.5 GB+     |   100s of MB    | CLI + brew deps |     ~350 MB     |
+| 💾 App on disk             |     **~8 MB**      |    ~1.5 GB+     |   100s of MB    | CLI + brew deps |     ~350 MB     |
 | 🎨 UI                      |  native SwiftUI    |    Electron     |     native      |    CLI only     |   minimal GUI   |
 | 🐳 Docker engine           |  real `dockerd`    | real `dockerd`  | own stack       | real `dockerd`  |        —        |
 | 🖥️ Dashboard (containers/stacks) |      ✅      |       ✅        |       ✅        |       ❌        |        —        |
@@ -236,6 +239,51 @@ adjust VM resources, snapshots, and the data folder in **Settings**.
   - First boot grows the root partition to fill the (sparse) disk.
   - Rosetta binfmt registration when the host shares the `rosetta` tag.
 
+### Environments (other Docker engines)
+
+The sidebar's environment switcher points every tab — Monitor, Containers,
+Stacks, Images, Volumes, Networks — at another engine. DockZ always opens on
+**Local**; a remote environment gets an orange header bar and destructive
+confirmations name the host. Machines stay Local-only, and Settings always
+configure this Mac's VM.
+
+| Kind | What you enter | How DockZ connects |
+| --- | --- | --- |
+| **SSH** | `user@host`, or a `~/.ssh/config` alias | `/usr/bin/ssh … docker system dial-stdio`, same as `docker -H ssh://`. Uses your keys, ssh-agent and ssh config (no passwords stored, key auth only). The remote user must be able to run `docker`. |
+| **TLS** | host, port (2376), the server's `ca.pem`, then a certificate for this Mac's key | Mutual TLS (swift-nio-ssl) to a `dockerd --tlsverify` engine; only that CA is trusted and the server name/IP is checked. |
+| **Socket** | a unix socket path | Another engine on this Mac (Colima, OrbStack, Docker Desktop). |
+
+The Add Environment sheet carries a step-by-step setup guide for each kind
+(also printable with `DockZ env-guide <ssh|tls|socket> <host> [port]`) and
+explains failed connections.
+
+**TLS keys never leave the Mac.** DockZ creates each TLS environment's client
+key inside the Mac's Secure Enclave and only shows a certificate signing
+request; the server admin signs it with their CA (one command, shown in the
+sheet) and the certificate is pasted back. Consequences:
+
+- No private key file exists — not in DockZ's folder, not on the server, not
+  in `~/Downloads`. Copying DockZ's data, a backup or the disk yields nothing
+  usable; `client-key.se` is a handle only this Mac's chip can use.
+- Using the key needs Touch ID (or the login password), enforced by the chip.
+  One confirmation unlocks the environment until the screen locks, the Mac
+  sleeps or you switch away; listing environments never prompts.
+- Client certificates last 90 days (dockerd can't revoke one certificate);
+  renew from the sheet. A lost Mac is cut off by replacing the server's CA.
+- The docker CLI (compose, Shell) reaches a TLS environment through a private
+  relay socket DockZ serves while it is selected (`$TMPDIR/dockz-cli/`, 0600)
+  — the CLI never gets certificates or keys.
+- The app is signed with the hardened runtime, so other code can't be
+  injected into DockZ to borrow its access.
+
+Windows engines work too — Windows containers are listed and managed through
+the same API; Linux-only options are hidden for them.
+
+Check an environment from the terminal: `DockZ env-probe ssh user@host [port]`
+(or `tls <host> <port> <cert-dir> [--relay SECONDS]`, `socket <path>`). The
+TLS probe reads `ca.pem`, `cert.pem` and a `key.pem` from the given folder —
+it is meant for test engines.
+
 ## Data files
 
 Everything lives under the data folder (default `~/.dockz/`, relocatable in
@@ -249,6 +297,7 @@ Settings):
 | `host.log`     | Host-side VM lifecycle log (state changes, stop/poweroff path) |
 | `config.json`  | cpus, memoryGiB, diskLimitGB, shareHomeDirectory, enableRosetta |
 | `bin/`, `docker-config/` | Managed docker CLI + its compose plugin and contexts |
+| `environments.json`, `environments/<id>/` | Other Docker engines (0600); a TLS environment's public `ca.pem` / `cert.pem` and Secure Enclave key handle `client-key.se` |
 | `snapshots/`   | VM disk snapshots + `index.json`                               |
 | `machines/`    | Multipass-style Linux machines (`machines/bases/` = distro images) |
 
@@ -281,7 +330,7 @@ Apple's Virtualization.framework.
 
 **How is DockZ different from OrbStack or Colima?**
 OrbStack is excellent but closed-source and paid for commercial use; Colima is
-free but CLI-only and installed via Homebrew. DockZ is a ~5 MB fully
+free but CLI-only and installed via Homebrew. DockZ is a ~8 MB fully
 open-source native app with a GUI dashboard, needs no Homebrew and no admin
 password, and also manages general-purpose Linux VMs. See the
 [comparison](#why-dockz).

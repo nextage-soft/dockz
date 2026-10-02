@@ -12,6 +12,8 @@ enum MonitorParse {
         var totalJiffies: UInt64
         var memTotalKiB: UInt64
         var memAvailableKiB: UInt64
+        /// Never underflows, even if /proc/meminfo came back partial.
+        var memUsedKiB: UInt64 { memTotalKiB > memAvailableKiB ? memTotalKiB - memAvailableKiB : 0 }
         var cachedKiB: UInt64
         var load1: Double
         var uptimeSeconds: Double
@@ -88,13 +90,13 @@ enum MonitorParse {
         guard let stats = ContainerStats(dict: dict) else { return nil }
         var rx: UInt64 = 0, tx: UInt64 = 0
         for interface in (dict["networks"] as? [String: [String: Any]] ?? [:]).values {
-            rx += (interface["rx_bytes"] as? NSNumber)?.uint64Value ?? 0
-            tx += (interface["tx_bytes"] as? NSNumber)?.uint64Value ?? 0
+            rx += DockerJSON.byteCount(interface["rx_bytes"])
+            tx += DockerJSON.byteCount(interface["tx_bytes"])
         }
         var read: UInt64 = 0, write: UInt64 = 0
         let blkio = (dict["blkio_stats"] as? [String: Any])?["io_service_bytes_recursive"] as? [[String: Any]] ?? []
         for entry in blkio {
-            let value = (entry["value"] as? NSNumber)?.uint64Value ?? 0
+            let value = DockerJSON.byteCount(entry["value"])
             switch (entry["op"] as? String)?.lowercased() {
             case "read": read += value
             case "write": write += value
@@ -134,23 +136,23 @@ enum MonitorParse {
     static func diskBreakdown(from dict: [String: Any]) -> DiskBreakdown {
         var breakdown = DiskBreakdown()
         // LayersSize counts each shared layer once — truer than summing images.
-        breakdown.imagesBytes = (dict["LayersSize"] as? NSNumber)?.uint64Value ?? 0
+        breakdown.imagesBytes = DockerJSON.byteCount(dict["LayersSize"])
         for image in dict["Images"] as? [[String: Any]] ?? [] where
             ((image["Containers"] as? NSNumber)?.intValue ?? 0) == 0 {
-            breakdown.imagesReclaimable += (image["Size"] as? NSNumber)?.uint64Value ?? 0
+            breakdown.imagesReclaimable += DockerJSON.byteCount(image["Size"])
         }
         for container in dict["Containers"] as? [[String: Any]] ?? [] {
-            breakdown.containersBytes += (container["SizeRw"] as? NSNumber)?.uint64Value ?? 0
+            breakdown.containersBytes += DockerJSON.byteCount(container["SizeRw"])
         }
         for volume in dict["Volumes"] as? [[String: Any]] ?? [] {
-            let size = ((volume["UsageData"] as? [String: Any])?["Size"] as? NSNumber)?.uint64Value ?? 0
+            let size = DockerJSON.byteCount((volume["UsageData"] as? [String: Any])?["Size"])
             breakdown.volumesBytes += size
             if ((volume["UsageData"] as? [String: Any])?["RefCount"] as? NSNumber)?.intValue == 0 {
                 breakdown.volumesReclaimable += size
             }
         }
         for cache in dict["BuildCache"] as? [[String: Any]] ?? [] {
-            let size = (cache["Size"] as? NSNumber)?.uint64Value ?? 0
+            let size = DockerJSON.byteCount(cache["Size"])
             breakdown.buildCacheBytes += size
             if (cache["InUse"] as? Bool) != true { breakdown.buildCacheReclaimable += size }
         }

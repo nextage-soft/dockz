@@ -83,6 +83,21 @@ final class MonitorStore: ObservableObject {
         previousSampleAt = nil
     }
 
+    /// Clears everything measured on the previous engine (rows, history,
+    /// delta baselines) while keeping the timer, so the new one starts clean.
+    func resetForEnvironmentChange() {
+        vm = nil
+        vmCPUPercent = 0
+        cpuHistory = []
+        memHistory = []
+        rows = []
+        breakdown = nil
+        previousGuest = nil
+        previousSamples = [:]
+        previousSampleAt = nil
+        tick = 0
+    }
+
     private func sample() {
         sampleVM()
         sampleContainers()
@@ -107,7 +122,7 @@ final class MonitorStore: ObservableObject {
                 self.vm = snapshot
                 self.push(&self.cpuHistory, self.vmCPUPercent / 100)
                 let usedFraction = snapshot.memTotalKiB > 0
-                    ? Double(snapshot.memTotalKiB - snapshot.memAvailableKiB) / Double(snapshot.memTotalKiB)
+                    ? Double(snapshot.memUsedKiB) / Double(snapshot.memTotalKiB)
                     : 0
                 self.push(&self.memHistory, usedFraction)
             }

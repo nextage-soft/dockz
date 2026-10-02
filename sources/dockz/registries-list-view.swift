@@ -9,6 +9,13 @@ struct RegistriesListView: View {
     @State private var editing: RegistryEntry?
     @State private var showAdd = false
     @State private var pendingRemoval: RegistryEntry?
+    @State private var searchText = ""
+
+    private let filter = ListFilters.registries
+
+    private var filtered: [RegistryEntry] {
+        filter.apply(registries.entries, scope: "all", query: searchText, sort: "name")
+    }
 
     init(store: DashboardStore) {
         self.store = store
@@ -17,20 +24,20 @@ struct RegistriesListView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Text("\(registries.entries.count) \(registries.entries.count == 1 ? "registry" : "registries")")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                Spacer()
+            ListHeaderBar(
+                summary: "\(registries.entries.count) \(registries.entries.count == 1 ? "registry" : "registries")",
+                prompt: "Filter registries",
+                searchText: $searchText
+            ) {
                 Button {
                     showAdd = true
                 } label: {
                     Label("Add Registry", systemImage: "plus")
                 }
                 .buttonStyle(.borderedProminent)
+                .keyboardShortcut("n", modifiers: .command)
+                .help("Add a registry (⌘N)")
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
             Divider()
             if registries.entries.isEmpty {
                 EmptyStateView(
@@ -40,10 +47,13 @@ struct RegistriesListView: View {
                     actionLabel: "Add Registry…"
                 ) { showAdd = true }
             } else {
-                List(registries.entries) { entry in
+                List(filtered) { entry in
                     row(entry)
                 }
                 .listStyle(.inset)
+                .overlay {
+                    if filtered.isEmpty { Text("No registries match").foregroundStyle(.secondary) }
+                }
             }
         }
         .sheet(isPresented: $showAdd) {

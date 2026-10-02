@@ -5,6 +5,7 @@ import SwiftUI
 struct SearchField: View {
     let prompt: String
     @Binding var text: String
+    @FocusState private var focused: Bool
 
     var body: some View {
         HStack(spacing: 5) {
@@ -14,6 +15,9 @@ struct SearchField: View {
             TextField("", text: $text, prompt: Text(prompt))
                 .textFieldStyle(.plain)
                 .font(.callout)
+                .focused($focused)
+                // Esc clears the search, like Finder.
+                .onExitCommand { text = "" }
             if !text.isEmpty {
                 Button {
                     text = ""
@@ -29,10 +33,21 @@ struct SearchField: View {
         .padding(.vertical, 5)
         .background(RoundedRectangle(cornerRadius: 7).fill(Color.primary.opacity(0.06)))
         .frame(width: 240)
+        // ⌘F jumps here. Only one list page is on screen at a time, so the
+        // shortcut always belongs to the visible list.
+        .background {
+            Button("") { focused = true }
+                .keyboardShortcut("f", modifiers: .command)
+                .opacity(0)
+                .frame(width: 0, height: 0)
+                .accessibilityHidden(true)
+        }
+        .help("Search (⌘F)")
     }
 }
 
-/// Header row above lists: count summary left, search + page actions right.
+/// Header row above every list: scope chips (or a count summary when a list
+/// has no scopes) on the left; search, sort and page actions on the right.
 /// Page-level actions live here (not in the window toolbar) because
 /// NavigationSplitView re-lays toolbar items out badly when the sidebar
 /// collapses/expands.
@@ -40,14 +55,31 @@ struct ListHeaderBar<Trailing: View>: View {
     let summary: String
     let prompt: String
     @Binding var searchText: String
+    var scopes: [ListScopeOption] = []
+    var scope: Binding<String>?
     @ViewBuilder var trailing: Trailing
+
+    init(summary: String, prompt: String, searchText: Binding<String>,
+         scopes: [ListScopeOption] = [], scope: Binding<String>? = nil,
+         @ViewBuilder trailing: () -> Trailing) {
+        self.summary = summary
+        self.prompt = prompt
+        _searchText = searchText
+        self.scopes = scopes
+        self.scope = scope
+        self.trailing = trailing()
+    }
 
     var body: some View {
         HStack(spacing: 10) {
-            Text(summary)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-            Spacer()
+            if let scope, scopes.count > 1 {
+                ListScopeChips(options: scopes, selection: scope)
+            } else {
+                Text(summary)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 8)
             SearchField(prompt: prompt, text: $searchText)
             trailing
         }
@@ -57,7 +89,9 @@ struct ListHeaderBar<Trailing: View>: View {
 }
 
 extension ListHeaderBar where Trailing == EmptyView {
-    init(summary: String, prompt: String, searchText: Binding<String>) {
-        self.init(summary: summary, prompt: prompt, searchText: searchText) { EmptyView() }
+    init(summary: String, prompt: String, searchText: Binding<String>,
+         scopes: [ListScopeOption] = [], scope: Binding<String>? = nil) {
+        self.init(summary: summary, prompt: prompt, searchText: searchText,
+                  scopes: scopes, scope: scope) { EmptyView() }
     }
 }

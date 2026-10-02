@@ -8,6 +8,14 @@ struct MachinesListView: View {
     @State private var showBuildOutput = false
     @State private var showBaseImages = false
     @State private var pendingDelete: MachineManager.Machine?
+    @State private var searchText = ""
+    @AppStorage("dockz.list.machines.scope") private var scope = "all"
+
+    private let filter = ListFilters.machines
+
+    private var filtered: [MachineManager.Machine] {
+        filter.apply(manager.machines, scope: scope, query: searchText, sort: "name")
+    }
 
     init(store: DashboardStore) {
         self.store = store
@@ -56,12 +64,13 @@ struct MachinesListView: View {
     }
 
     private var header: some View {
-        HStack {
-            let count = manager.machines.count
-            Text("\(count) \(count == 1 ? "machine" : "machines")")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-            Spacer()
+        ListHeaderBar(
+            summary: "\(manager.machines.count) \(manager.machines.count == 1 ? "machine" : "machines")",
+            prompt: "Filter machines",
+            searchText: $searchText,
+            scopes: filter.options(for: manager.machines, query: searchText),
+            scope: $scope
+        ) {
             Button {
                 showBaseImages = true
             } label: {
@@ -85,10 +94,10 @@ struct MachinesListView: View {
                     Label("New Machine", systemImage: "plus")
                 }
                 .buttonStyle(.borderedProminent)
+                .keyboardShortcut("n", modifiers: .command)
+                .help("New machine (⌘N)")
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
     }
 
     @ViewBuilder
@@ -109,10 +118,13 @@ struct MachinesListView: View {
                 }
             }
         } else {
-            List(manager.machines) { machine in
+            List(filtered) { machine in
                 machineRow(machine)
             }
             .listStyle(.inset)
+            .overlay {
+                if filtered.isEmpty { Text("No machines match").foregroundStyle(.secondary) }
+            }
         }
     }
 

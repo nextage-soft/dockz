@@ -1,15 +1,16 @@
 import Foundation
 import Virtualization
 
-/// Minimal Docker Engine API client speaking HTTP/1.1 directly over vsock
-/// connections to dockerd inside the guest.
+/// Minimal Docker Engine API client speaking HTTP/1.1 over one fresh byte
+/// stream per call — vsock to the local VM, or SSH / TLS / unix socket to any
+/// other engine (see `DockerEndpoint`).
 final class DockerAPIClient {
     typealias VsockConnect = (UInt32, @escaping (Result<VZVirtioSocketConnection, Error>) -> Void) -> Void
 
-    private let connect: VsockConnect
+    let endpoint: DockerEndpoint
 
-    init(connect: @escaping VsockConnect) {
-        self.connect = connect
+    init(endpoint: DockerEndpoint) {
+        self.endpoint = endpoint
     }
 
     func ping(completion: @escaping (Bool) -> Void) {
@@ -71,12 +72,12 @@ final class DockerAPIClient {
     /// Opens the /events stream. `onActivity` fires for every event payload —
     /// callers re-list containers instead of parsing individual events.
     func streamEvents(onActivity: @escaping () -> Void, onClose: @escaping () -> Void) {
-        openVsock { result in
+        openStream { result in
             guard case .success(let connection) = result else {
                 onClose()
                 return
             }
-            RawHTTPCall(connection: connection).stream(
+            RawHTTPCall(stream: connection).stream(
                 path: "/events",
                 onBodyData: { _ in onActivity() },
                 onClose: onClose
@@ -85,18 +86,18 @@ final class DockerAPIClient {
     }
 
     private func get(_ path: String, completion: @escaping (Result<RawHTTPCall.Response, Error>) -> Void) {
-        openVsock { result in
+        openStream { result in
             switch result {
             case .failure(let error):
                 completion(.failure(error))
             case .success(let connection):
-                RawHTTPCall(connection: connection).get(path: path, completion: completion)
+                RawHTTPCall(stream: connection).get(path: path, completion: completion)
             }
         }
     }
 
     /// Opens a fresh vsock connection to dockerd (one connection per request).
-    func openVsock(_ completion: @escaping (Result<VZVirtioSocketConnection, Error>) -> Void) {
-        connect(DockerSocketBridge.dockerVsockPort, completion)
+    func openStream(_ completion: @escaping (Result<DockerByteStream, Error>) -> Void) {
+        endpoint.open(completion)
     }
 }

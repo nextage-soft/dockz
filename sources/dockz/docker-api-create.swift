@@ -4,12 +4,12 @@ import Foundation
 extension DockerAPIClient {
     func postJSON(path: String, json: [String: Any]?, headers: [String: String] = [:], completion: @escaping (Result<RawHTTPCall.Response, Error>) -> Void) {
         let body = json.flatMap { try? JSONSerialization.data(withJSONObject: $0) }
-        openVsock { result in
+        openStream { result in
             switch result {
             case .failure(let error):
                 completion(.failure(error))
             case .success(let connection):
-                RawHTTPCall(connection: connection).request(method: "POST", path: path, body: body, headers: headers, completion: completion)
+                RawHTTPCall(stream: connection).request(method: "POST", path: path, body: body, headers: headers, completion: completion)
             }
         }
     }

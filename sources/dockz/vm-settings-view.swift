@@ -30,6 +30,12 @@ struct VMSettingsView: View {
 
     var body: some View {
         Form {
+            if let remote = store.environments.selected {
+                Label("These settings are for DockZ and its VM on this Mac — not \(remote.name).",
+                      systemImage: "info.circle")
+                    .font(.callout)
+                    .foregroundStyle(.orange)
+            }
             aboutSection
             Section {
                 baseSystemRow("OS", key: "os", icon: "cpu")
@@ -127,9 +133,12 @@ struct VMSettingsView: View {
             Section {
                 let snapshots = snapshotRefresh >= 0 ? (store.hostActions?.snapshots() ?? []) : []
                 HStack {
-                    TextField("Snapshot name", text: $snapshotName)
+                    // Untitled + labelsHidden: in a grouped Form a titled field
+                    // turns its title into a label column that squeezes the row.
+                    TextField("", text: $snapshotName, prompt: Text("Snapshot name (optional)"))
+                        .labelsHidden()
                         .textFieldStyle(.roundedBorder)
-                        .frame(maxWidth: 200)
+                        .frame(maxWidth: 260)
                     Button("Create Snapshot") {
                         store.hostActions?.createSnapshot(snapshotName)
                         snapshotName = ""
@@ -191,6 +200,7 @@ struct VMSettingsView: View {
                 LabeledContent("Console log", value: "console.log (in data folder)")
                 LabeledContent("Machines", value: "machines/ (in data folder)")
             }
+            AdvancedEngineSettingsSection(store: store)
         }
         .formStyle(.grouped)
         .navigationTitle("Settings")

@@ -84,16 +84,20 @@ final class DashboardStore: ObservableObject {
             lastError = "Docker CLI not found. Install it from Settings → Docker CLI."
             return
         }
-        let socket = DockzPaths().dockerSocket.path
-        var environment = ["DOCKER_HOST": "unix://\(socket)"]
+        var environment = currentEndpoint.cliEnvironment
         if let configDirectory = docker.configDirectory {
             environment["DOCKER_CONFIG"] = configDirectory
         }
+        // Windows containers have no /bin/sh; cmd.exe ships in every Windows image.
+        let shell = engineInfo?.isWindows == true
+            ? ["cmd"]
+            : ["/bin/sh", "-c", "[ -x /bin/bash ] && exec bash || exec sh"]
+        let host = environments.selected.map { " on \($0.name)" } ?? ""
         TerminalLauncher.launch(TerminalCommand(
             title: container.name,
-            subtitle: "docker exec — \(container.image)",
+            subtitle: "docker exec\(host) — \(container.image)",
             executable: docker.path,
-            arguments: ["exec", "-it", container.name, "/bin/sh", "-c", "[ -x /bin/bash ] && exec bash || exec sh"],
+            arguments: ["exec", "-it", container.name] + shell,
             environment: environment
         ))
     }
@@ -107,8 +111,62 @@ final class DashboardStore: ObservableObject {
     @Published var editPayload: EditContainerPayload?
     @Published var duplicatePayload: DuplicatePayload?
 
-    var apiProvider: () -> DockerAPIClient? = { nil }
-    var shellProvider: () -> DockerAPIClient.VsockConnect? = { nil }
+    /// The local VM's client and guest shell (set by the AppDelegate). Views
+    /// call `apiProvider()` / `shellProvider()`, which follow the selected
+    /// environment.
+    var localAPIProvider: () -> DockerAPIClient? = { nil }
+    var localShellProvider: () -> DockerAPIClient.VsockConnect? = { nil }
+    let environments = EnvironmentStore()
+    /// `/info` of the engine currently shown (any environment).
+    @Published var engineInfo: EngineInfo?
+
+    func apiProvider() -> DockerAPIClient? {
+        if let environment = environments.selected { return environments.client(for: environment) }
+        return localAPIProvider()
+    }
+
+    /// The guest shell exists only for the local VM; remote engines have none.
+    func shellProvider() -> DockerAPIClient.VsockConnect? {
+        environments.isLocal ? localShellProvider() : nil
+    }
+
+    /// " on <environment>" when a remote engine is shown, else "". Appended to
+    /// every destructive confirmation so it names the host it will hit.
+    var targetSuffix: String {
+        environments.selected.map { " on \($0.name)" } ?? ""
+    }
+
+    /// Endpoint the docker CLI (compose, exec shells) should target.
+    var currentEndpoint: DockerEndpoint {
+        environments.selected?.endpoint() ?? .vsock({ _, _ in })
+    }
+
+    /// Points every tab at another engine: drop what belongs to the old one
+    /// (lists, open detail, monitor baselines) and reload from the new one.
+    func switchEnvironment(to id: UUID?) {
+        guard id != environments.selectedID else { return }
+        // A TLS environment's key is used only after the owner confirms with
+        // Touch ID; stay on the current environment until then.
+        if let target = environments.environments.first(where: { $0.id == id }), target.kind == .tls,
+           !TLSClientKeyVault.shared.isUnlocked(target.id) {
+            environments.unlock(target) { [weak self] failure in
+                if let failure {
+                    self?.lastError = "\(target.name): \(failure)"
+                } else {
+                    self?.switchEnvironment(to: target.id)
+                }
+            }
+            return
+        }
+        closeDetail()
+        containers = []; images = []; volumes = []; networks = []
+        engineInfo = nil
+        lastError = nil
+        monitor.resetForEnvironmentChange()
+        environments.select(id)
+        if let environment = environments.selected { environments.check(environment) }
+        refreshAll()
+    }
     var hostActions: HostActions?
     let registries = RegistryStore()
     let machineManager = MachineManager()
@@ -149,6 +207,14 @@ final class DashboardStore: ObservableObject {
         }
         engineReady = true
         if selectedContainer != nil { reloadDetail() }
+        let shownEnvironment = environments.selectedID
+        api.engineInfo { [weak self] info, _ in
+            DispatchQueue.main.async {
+                // Ignore a late answer from the engine we just switched away from.
+                guard let self, self.environments.selectedID == shownEnvironment else { return }
+                if self.engineInfo != info { self.engineInfo = info }
+            }
+        }
         api.listAllContainers { [weak self] list in
             DispatchQueue.main.async { if self?.containers != list { self?.containers = list } }
         }
