@@ -116,11 +116,18 @@ final class DockerBringupCoordinator {
 
     // MARK: - Events & ports
 
+    /// Posted on the main queue for every Docker event of the local engine,
+    /// so views refresh on change instead of polling.
+    static let engineActivity = Notification.Name("DockerBringupCoordinator.engineActivity")
+
     private func startEventStream() {
         guard !stopped else { return }
         api?.streamEvents(
             onActivity: { [weak self] in
-                DispatchQueue.main.async { self?.scheduleReconcile() }
+                DispatchQueue.main.async {
+                    self?.scheduleReconcile()
+                    NotificationCenter.default.post(name: DockerBringupCoordinator.engineActivity, object: nil)
+                }
             },
             onClose: { [weak self] in
                 DispatchQueue.main.async {

@@ -20,6 +20,10 @@ final class VMController: NSObject, VZVirtualMachineDelegate {
     private let paths: DockzPaths
     private let settings: DockzSettings
     private var stopCompletion: (() -> Void)?
+    /// Set when DockZ itself asked the VM to stop. A stop without it — the
+    /// guest rebooting after a kernel panic, a Virtualization error — is
+    /// unexpected and gets the VM restarted. Read on the main queue.
+    private(set) var stopWasRequested = false
 
     /// Called on the main queue whenever the state changes.
     var onStateChange: ((VMState) -> Void)?
@@ -63,6 +67,7 @@ final class VMController: NSObject, VZVirtualMachineDelegate {
     /// Asks the guest to power off (vsock agent + platform stop request) and
     /// force-stops if it does not comply within 15 seconds.
     func stop(completion: (() -> Void)? = nil) {
+        stopWasRequested = true
         HostLog.write("stop requested")
         queue.async {
             guard let vm = self.virtualMachine, vm.state == .running else {

@@ -183,20 +183,47 @@ final class DashboardStore: ObservableObject {
     }
 
     private var refreshTimer: Timer?
+    private var activityObserver: NSObjectProtocol?
+    private var activityDebounce: Timer?
 
     // MARK: - Refresh
+
+    /// Safety-net poll. Every API call opens a fresh vsock connection and the
+    /// guest kernel's vsock path is where it failed (2026-10-02), so the
+    /// local engine refreshes on its Docker events instead; remote engines
+    /// have no event stream here and rely on this interval plus refreshes
+    /// after DockZ's own actions.
+    static let refreshInterval: TimeInterval = 15
 
     func startAutoRefresh() {
         refreshAll()
         refreshTimer?.invalidate()
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: 4, repeats: true) { [weak self] _ in
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: Self.refreshInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.refreshAll() }
+        }
+        guard activityObserver == nil else { return }
+        activityObserver = NotificationCenter.default.addObserver(
+            forName: DockerBringupCoordinator.engineActivity, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.scheduleActivityRefresh() }
         }
     }
 
     func stopAutoRefresh() {
         refreshTimer?.invalidate()
         refreshTimer = nil
+        activityDebounce?.invalidate()
+        if let activityObserver { NotificationCenter.default.removeObserver(activityObserver) }
+        activityObserver = nil
+    }
+
+    /// Bursts of events (compose up = dozens) collapse into one refresh.
+    private func scheduleActivityRefresh() {
+        guard environments.isLocal else { return }
+        activityDebounce?.invalidate()
+        activityDebounce = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { [weak self] _ in
+            Task { @MainActor in self?.refreshAll() }
+        }
     }
 
     func refreshAll() {
