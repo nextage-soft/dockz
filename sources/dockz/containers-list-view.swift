@@ -6,19 +6,24 @@ struct ContainersListView: View {
     @State private var showRunForm = false
     @State private var searchText = ""
     @State private var pendingRemoval: ContainerSummary?
+    @State private var collapsedStacks: Set<String> = []
+    @AppStorage("dockz.list.containers.scope") private var scope = "all"
+    @AppStorage("dockz.list.containers.sort") private var sort = "status"
+    @AppStorage("dockz.list.containers.groupByStack") private var groupByStack = true
 
-    private var filtered: [ContainerSummary] {
-        guard !searchText.isEmpty else { return store.containers }
-        let query = searchText.lowercased()
-        return store.containers.filter {
-            $0.name.lowercased().contains(query) || $0.image.lowercased().contains(query)
-        }
+    private let filter = ListFilters.containers
+
+    private var visible: [ContainerSummary] {
+        filter.apply(store.containers, scope: scope, query: searchText, sort: sort)
     }
 
-    private var summaryText: String {
-        let total = store.containers.count
-        let running = store.containers.filter(\.isRunning).count
-        return "\(total) \(total == 1 ? "container" : "containers") · \(running) running"
+    /// Compose projects as groups (by name), plain containers last.
+    private var groups: [(project: String?, members: [ContainerSummary])] {
+        let byProject = Dictionary(grouping: visible, by: \.composeProject)
+        let stacks = byProject.keys.compactMap { $0 }.sorted(by: namesAscending)
+        var result = stacks.map { (project: Optional($0), members: byProject[$0] ?? []) }
+        if let plain = byProject[nil], !plain.isEmpty { result.append((project: nil, members: plain)) }
+        return result
     }
 
     var body: some View {
@@ -33,33 +38,47 @@ struct ContainersListView: View {
             } else {
                 VStack(spacing: 0) {
                     ListHeaderBar(
-                        summary: summaryText,
-                        prompt: "Filter by name or image",
-                        searchText: $searchText
+                        summary: "",
+                        prompt: "Filter by name, image or stack",
+                        searchText: $searchText,
+                        scopes: filter.options(for: store.containers, query: searchText),
+                        scope: $scope
                     ) {
+                        ListSortMenu(options: filter.sortOptions, selection: $sort) {
+                            Divider()
+                            Toggle("Group by Stack", isOn: $groupByStack)
+                        }
                         Button {
                             showRunForm = true
                         } label: {
                             Label("Run", systemImage: "plus")
                         }
                         .buttonStyle(.borderedProminent)
+                        .keyboardShortcut("n", modifiers: .command)
                         .disabled(!store.engineReady)
-                        .help("Run a new container")
+                        .help("Run a new container (⌘N)")
                     }
                     Divider()
-                    List(filtered) { container in
-                        ContainerRow(
-                            container: container,
-                            isBusy: store.busyIDs.contains(container.id),
-                            onAction: { verb in store.containerAction(verb, container) },
-                            onRemove: { pendingRemoval = container },
-                            onLogs: { logsContainer = container },
-                            onEdit: { store.beginEditContainer(container) },
-                            onOpen: { store.openDetail(for: container) }
-                        )
-                        .listRowSeparator(.hidden)
+                    if visible.isEmpty {
+                        noMatches
+                    } else {
+                        List {
+                            if groupByStack {
+                                ForEach(groups, id: \.project) { group in
+                                    Section {
+                                        if !collapsedStacks.contains(group.project ?? "") {
+                                            ForEach(group.members) { row($0) }
+                                        }
+                                    } header: {
+                                        groupHeader(group.project, members: group.members)
+                                    }
+                                }
+                            } else {
+                                ForEach(visible) { row($0) }
+                            }
+                        }
+                        .listStyle(.inset)
                     }
-                    .listStyle(.inset)
                 }
             }
         }
@@ -71,7 +90,7 @@ struct ContainersListView: View {
             RunContainerFormView(store: store, mode: .run)
         }
         .confirmationDialog(
-            "Remove container \"\(pendingRemoval?.name ?? "")\"?",
+            "Remove container \"\(pendingRemoval?.name ?? "")\"\(store.targetSuffix)?",
             isPresented: Binding(get: { pendingRemoval != nil }, set: { if !$0 { pendingRemoval = nil } }),
             titleVisibility: .visible
         ) {
@@ -82,6 +101,62 @@ struct ContainersListView: View {
         } message: {
             Text("The container is stopped and deleted. Data outside volumes is lost.")
         }
+    }
+
+    private func row(_ container: ContainerSummary) -> some View {
+        ContainerRow(
+            container: container,
+            isBusy: store.busyIDs.contains(container.id),
+            onAction: { verb in store.containerAction(verb, container) },
+            onRemove: { pendingRemoval = container },
+            onLogs: { logsContainer = container },
+            onEdit: { store.beginEditContainer(container) },
+            onOpen: { store.openDetail(for: container) }
+        )
+        .listRowSeparator(.hidden)
+    }
+
+    /// Stack name, how much of it runs, and a collapse toggle.
+    private func groupHeader(_ project: String?, members: [ContainerSummary]) -> some View {
+        let key = project ?? ""
+        let collapsed = collapsedStacks.contains(key)
+        let running = members.filter(\.isRunning).count
+        return Button {
+            if collapsed { collapsedStacks.remove(key) } else { collapsedStacks.insert(key) }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "chevron.right")
+                    .font(.caption2.weight(.bold))
+                    .rotationEffect(.degrees(collapsed ? 0 : 90))
+                    .foregroundStyle(.secondary)
+                Image(systemName: project == nil ? "shippingbox" : "rectangle.3.group")
+                    .foregroundStyle(.secondary)
+                Text(project ?? "Standalone containers")
+                    .font(.callout.weight(.semibold))
+                Text("\(running)/\(members.count) running")
+                    .font(.caption)
+                    .foregroundStyle(running == members.count ? Color.green : .secondary)
+                Spacer()
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var noMatches: some View {
+        VStack(spacing: 8) {
+            Spacer()
+            Image(systemName: "line.3.horizontal.decrease.circle")
+                .font(.system(size: 34, weight: .light))
+                .foregroundStyle(.tertiary)
+            Text("No containers match").font(.headline)
+            Button("Show All") {
+                scope = "all"
+                searchText = ""
+            }
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 
@@ -102,12 +177,17 @@ private struct ContainerRow: View {
                 HStack(spacing: 8) {
                     Text(container.name)
                         .font(.system(.body, weight: .semibold))
-                    StatusChip(state: container.state)
+                    StatusChip(state: container.displayState)
+                    if let health = container.health {
+                        HealthChip(health: health)
+                    }
                 }
                 HStack(spacing: 8) {
-                    Label(container.image, systemImage: "square.stack.3d.up")
+                    Label(container.imageLabel, systemImage: "square.stack.3d.up")
                         .lineLimit(1)
-                    Text(container.status)
+                        .truncationMode(.middle)
+                        .help(container.image)
+                    Text(container.statusText)
                         .lineLimit(1)
                 }
                 .font(.caption)
@@ -224,13 +304,32 @@ struct StatusChip: View {
         case "running": return .green
         case "paused": return .yellow
         case "restarting": return .orange
-        case "dead": return .red
+        case "dead", "crashed": return .red
         default: return .secondary
         }
     }
 
     var body: some View {
         Text(state)
+            .font(.caption2.weight(.medium))
+            .padding(.horizontal, 7)
+            .padding(.vertical, 2)
+            .background(Capsule().fill(color.opacity(0.16)))
+            .foregroundStyle(color)
+    }
+}
+
+/// Healthcheck result as its own chip, so "unhealthy" stands out.
+struct HealthChip: View {
+    let health: ContainerSummary.Health
+
+    var body: some View {
+        let (text, color): (String, Color) = switch health {
+        case .healthy: ("healthy", .green)
+        case .unhealthy: ("unhealthy", .red)
+        case .starting: ("starting", .yellow)
+        }
+        Label(text, systemImage: health == .unhealthy ? "heart.slash" : "heart")
             .font(.caption2.weight(.medium))
             .padding(.horizontal, 7)
             .padding(.vertical, 2)

@@ -7,6 +7,14 @@ struct StacksListView: View {
     @ObservedObject var store: DashboardStore
     @State private var pendingDown: StackRow?
     @State private var editorPayload: StackEditorPayload?
+    @State private var searchText = ""
+    @AppStorage("dockz.list.stacks.scope") private var scope = "all"
+
+    private let filter = ListFilters.stacks
+
+    private var filtered: [StackRow] {
+        filter.apply(store.stackRows, scope: scope, query: searchText, sort: "name")
+    }
 
     struct StackEditorPayload: Identifiable {
         let id = UUID()
@@ -17,12 +25,13 @@ struct StacksListView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                let count = store.stackRows.count
-                Text("\(count) \(count == 1 ? "stack" : "stacks")")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                Spacer()
+            ListHeaderBar(
+                summary: "\(store.stackRows.count) \(store.stackRows.count == 1 ? "stack" : "stacks")",
+                prompt: "Filter stacks",
+                searchText: $searchText,
+                scopes: filter.options(for: store.stackRows, query: searchText),
+                scope: $scope
+            ) {
                 Menu {
                     Button {
                         editorPayload = StackEditorPayload(name: "", yaml: Self.templateYAML, existingPath: nil)
@@ -41,8 +50,6 @@ struct StacksListView: View {
                 .fixedSize()
                 .disabled(!store.engineReady || store.composeRunning)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
             Divider()
             if store.stackRows.isEmpty {
                 EmptyStateView(
@@ -52,10 +59,13 @@ struct StacksListView: View {
                     actionLabel: "Deploy Compose File…"
                 ) { pickComposeFile() }
             } else {
-                List(store.stackRows) { row in
+                List(filtered) { row in
                     stackRow(row)
                 }
                 .listStyle(.inset)
+                .overlay {
+                    if filtered.isEmpty { Text("No stacks match").foregroundStyle(.secondary) }
+                }
             }
         }
         .sheet(isPresented: $store.showComposeOutput) {
@@ -65,7 +75,7 @@ struct StacksListView: View {
             StackEditorSheet(store: store, payload: payload)
         }
         .confirmationDialog(
-            "Tear down stack \"\(pendingDown?.name ?? "")\"?",
+            "Tear down stack \"\(pendingDown?.name ?? "")\"\(store.targetSuffix)?",
             isPresented: Binding(get: { pendingDown != nil }, set: { if !$0 { pendingDown = nil } }),
             titleVisibility: .visible
         ) {

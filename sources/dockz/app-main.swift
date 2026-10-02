@@ -18,6 +18,12 @@ enum DockzMain {
         if arguments.contains("test") {
             TestRunner.run()
         }
+        if let index = arguments.firstIndex(of: "env-guide") {
+            EnvironmentGuideCLI.run(arguments: Array(arguments[(index + 1)...]))
+        }
+        if let index = arguments.firstIndex(of: "env-probe") {
+            EnvironmentProbeCLI.run(arguments: Array(arguments[(index + 1)...]))
+        }
         if arguments.contains("install-docker-cli") {
             DockerCLIInstaller.runCLI()
         }

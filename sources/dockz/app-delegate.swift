@@ -156,8 +156,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Dashboard
 
     private func configureDashboardStore() {
-        dashboardStore.apiProvider = { [weak self] in self?.bringup?.apiClient }
-        dashboardStore.shellProvider = { [weak self] in
+        dashboardStore.localAPIProvider = { [weak self] in self?.bringup?.apiClient }
+        // Screen lock / sleep relocks TLS keys; don't leave the dashboard
+        // pointed at an engine it can no longer reach.
+        dashboardStore.environments.onSelectedEnvironmentLocked = { [weak dashboardStore] environment in
+            dashboardStore?.switchEnvironment(to: nil)
+            dashboardStore?.lastError = "\(environment.name) locked — select it again to unlock with Touch ID"
+        }
+        dashboardStore.localShellProvider = { [weak self] in
             guard let self, self.display.vmState == .running else { return nil }
             return self.vmController?.vsockConnector()
         }

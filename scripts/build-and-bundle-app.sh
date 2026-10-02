@@ -36,6 +36,9 @@ APP="build/DockZ.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp .build/release/DockzApp "$APP/Contents/MacOS/DockZ"
+# Drop local symbols (keeps exported ones): BoringSSL from swift-nio-ssl
+# roughly doubles the unstripped binary (16.6 → 8.0 MB measured 2026-10-01).
+strip -x "$APP/Contents/MacOS/DockZ"
 # Bundle the guest config so `Dockz build-image` works from anywhere.
 cp -R guest "$APP/Contents/Resources/guest"
 rm -rf "$APP/Contents/Resources/guest/work"
@@ -89,7 +92,10 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 </plist>
 PLIST
 
-codesign --force --sign "$SIGN_IDENTITY" \
+# Hardened runtime: macOS refuses injected libraries (DYLD_INSERT_LIBRARIES)
+# and debugger attachment, so other code can't ride inside DockZ to use what
+# it is trusted with (Secure Enclave keys, keychain items, the VM).
+codesign --force --options runtime --sign "$SIGN_IDENTITY" \
     --entitlements scripts/dockz.entitlements \
     "$APP"
 

@@ -3,12 +3,12 @@ import Foundation
 /// Management calls used by the dashboard (containers / images / volumes).
 extension DockerAPIClient {
     func requestData(method: String, path: String, completion: @escaping (Result<RawHTTPCall.Response, Error>) -> Void) {
-        openVsock { result in
+        openStream { result in
             switch result {
             case .failure(let error):
                 completion(.failure(error))
             case .success(let connection):
-                RawHTTPCall(connection: connection).request(method: method, path: path, completion: completion)
+                RawHTTPCall(stream: connection).request(method: method, path: path, completion: completion)
             }
         }
     }
@@ -108,7 +108,7 @@ extension DockerAPIClient {
     /// integer-or-float JSON number. Missing field (networks/prune) → 0.
     static func spaceReclaimed(_ body: Data) -> UInt64 {
         let object = try? JSONSerialization.jsonObject(with: body) as? [String: Any]
-        return (object?["SpaceReclaimed"] as? NSNumber)?.uint64Value ?? 0
+        return DockerJSON.byteCount(object?["SpaceReclaimed"])
     }
 
     /// `filters={"dangling":["false"]}` URL-encoded — widens /images/prune from

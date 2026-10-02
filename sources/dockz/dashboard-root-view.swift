@@ -13,7 +13,7 @@ struct DashboardRootView: View {
         case networks = "Networks"
         case machines = "Machines"
         case registries = "Registries"
-        case engine = "Engine"
+        case environments = "Environments"
         case settings = "Settings"
 
         var id: String { rawValue }
@@ -28,15 +28,21 @@ struct DashboardRootView: View {
             case .networks: return "network"
             case .machines: return "desktopcomputer"
             case .registries: return "key"
-            case .engine: return "slider.horizontal.3"
+            case .environments: return "server.rack"
             case .settings: return "gearshape"
             }
         }
     }
 
     @ObservedObject var store: DashboardStore
+    @ObservedObject var environments: EnvironmentStore
     @AppStorage("dockz.sidebar.collapsed") private var sidebarCollapsed = false
     @State private var selection: Section = .containers
+
+    init(store: DashboardStore) {
+        self.store = store
+        self.environments = store.environments
+    }
 
     var body: some View {
         ZStack {
@@ -58,6 +64,14 @@ struct DashboardRootView: View {
             }
         }
         .frame(minHeight: 440)
+        // ⌘R reloads whatever engine is selected, from any page.
+        .background {
+            Button("") { store.refreshAll() }
+                .keyboardShortcut("r", modifiers: .command)
+                .opacity(0)
+                .frame(width: 0, height: 0)
+                .accessibilityHidden(true)
+        }
         // Pull the content up into the (transparent) titlebar region so the
         // header row sits on the same line as the traffic lights.
         .ignoresSafeArea(.container, edges: .top)
@@ -127,11 +141,31 @@ struct DashboardRootView: View {
             Text(selection.rawValue)
                 .font(.callout)
                 .foregroundStyle(.secondary)
+            if let remote = environments.selected {
+                Text("\(remote.name) · remote")
+                    .font(.caption.weight(.medium))
+                    .padding(.horizontal, 8).padding(.vertical, 2)
+                    .background(Capsule().fill(Color.orange.opacity(0.18)))
+                    .foregroundStyle(Color.orange)
+                    .help(remote.summary)
+            }
             Spacer()
+            if let info = store.engineInfo {
+                Text("Docker \(info.serverVersion) · \(info.operatingSystem)")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+            }
         }
         .padding(.horizontal, 14)
         .frame(height: 42)
         .background(.bar)
+        // Not on Local: every click here reaches a real server.
+        .overlay(alignment: .top) {
+            if !environments.isLocal {
+                Rectangle().fill(Color.orange).frame(height: 3)
+            }
+        }
     }
 
     // MARK: - Sidebar (collapsible to an icon rail)
@@ -140,6 +174,11 @@ struct DashboardRootView: View {
         VStack(alignment: .leading, spacing: 2) {
             // Space for the window traffic lights.
             Color.clear.frame(height: 34)
+            EnvironmentSwitcher(store: store, collapsed: sidebarCollapsed)
+                .padding(.horizontal, sidebarCollapsed ? 0 : 6)
+                .padding(.vertical, 6)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.05)))
+                .padding(.bottom, 6)
             ForEach(Section.allCases) { section in
                 sidebarItem(section)
             }
@@ -286,11 +325,27 @@ struct DashboardRootView: View {
         case .images: ImagesListView(store: store)
         case .volumes: VolumesListView(store: store)
         case .networks: NetworksListView(store: store)
+        case .machines where !environments.isLocal:
+            localOnlyPlaceholder(selection)
         case .machines: MachinesListView(store: store)
         case .registries: RegistriesListView(store: store)
-        case .engine: EngineSettingsView(store: store)
+        case .environments: EnvironmentManagerView(store: store)
         case .settings: VMSettingsView(store: store)
         }
+    }
+
+    /// Machines are VMs on this Mac — they don't exist for a remote engine.
+    private func localOnlyPlaceholder(_ section: Section) -> some View {
+        VStack(spacing: 10) {
+            Image(systemName: section.icon).font(.largeTitle).foregroundStyle(.tertiary)
+            Text("\(section.rawValue) is available on Local only").font(.headline)
+            Text("You're viewing \(environments.selected?.name ?? "another engine"). \(section.rawValue) belongs to the DockZ VM on this Mac.")
+                .font(.callout).foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            Button("Switch to Local") { store.switchEnvironment(to: nil) }
+        }
+        .padding(40)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func count(for section: Section) -> Int? {
@@ -303,7 +358,8 @@ struct DashboardRootView: View {
         case .networks: return store.networks.count
         case .machines: return store.machineManager.machines.isEmpty ? nil : store.machineManager.machines.count
         case .registries: return store.registries.entries.isEmpty ? nil : store.registries.entries.count
-        case .engine, .settings: return nil
+        case .environments: return environments.environments.isEmpty ? nil : environments.environments.count
+        case .settings: return nil
         }
     }
 

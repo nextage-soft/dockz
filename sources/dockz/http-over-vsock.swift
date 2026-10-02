@@ -1,19 +1,24 @@
 import Foundation
 import Virtualization
 
-/// One HTTP/1.1 GET exchange over an open vsock connection, implemented with
-/// plain blocking reads on a dedicated thread. Used for the Docker Engine API
-/// (each call opens its own vsock connection, `Connection: close` semantics).
+/// One HTTP/1.1 exchange over an open byte stream (vsock, SSH, TLS or unix
+/// socket), implemented with plain blocking reads on a dedicated thread. Each
+/// Docker Engine API call opens its own stream, `Connection: close` semantics.
 final class RawHTTPCall {
     struct Response {
         let status: Int
         let body: Data
     }
 
-    private let connection: VZVirtioSocketConnection
+    /// Idle limit for request/response calls: a remote engine or link that
+    /// stops answering must fail the call instead of parking a thread forever.
+    /// Streams (/events) are open-ended and have no limit.
+    static let responseIdleTimeout: TimeInterval = 120
 
-    init(connection: VZVirtioSocketConnection) {
-        self.connection = connection
+    private let connection: DockerByteStream
+
+    init(stream: DockerByteStream) {
+        self.connection = stream
     }
 
     func get(path: String, completion: @escaping (Result<Response, Error>) -> Void) {
@@ -44,6 +49,10 @@ final class RawHTTPCall {
             let fd = connection.fileDescriptor
             var noSigpipe: Int32 = 1
             _ = setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &noSigpipe, socklen_t(MemoryLayout<Int32>.size))
+            if onBodyData == nil {
+                var timeout = timeval(tv_sec: Int(Self.responseIdleTimeout), tv_usec: 0)
+                _ = setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
+            }
 
             var extraHeaders = ""
             for (name, value) in customHeaders {
@@ -60,8 +69,9 @@ final class RawHTTPCall {
             if let body { requestBytes.append(contentsOf: body) }
             let written = requestBytes.withUnsafeBytes { write(fd, $0.baseAddress, $0.count) }
             guard written == requestBytes.count else {
+                let reason = connection.failureDiagnostics() ?? "request write failed"
                 connection.close()
-                completion?(.failure(DockzError.httpProtocolError("request write failed")))
+                completion?(.failure(DockzError.httpProtocolError(reason)))
                 onClose?()
                 return
             }
@@ -119,12 +129,14 @@ final class RawHTTPCall {
                 if let contentLength, !chunked, body.count >= contentLength { break }
             }
 
+            // Ask the transport why before closing it tears that state down.
+            let diagnostics = headersParsed ? nil : connection.failureDiagnostics()
             connection.close()
             if let completion {
                 if headersParsed {
                     completion(.success(Response(status: status, body: body)))
                 } else {
-                    completion(.failure(DockzError.httpProtocolError("connection closed before response")))
+                    completion(.failure(DockzError.httpProtocolError(diagnostics ?? "connection closed before response")))
                 }
             }
             onClose?()

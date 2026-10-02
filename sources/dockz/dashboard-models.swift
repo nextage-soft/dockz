@@ -2,6 +2,18 @@ import Foundation
 
 /// Row models for the dashboard, parsed from Docker Engine API JSON.
 
+enum DockerJSON {
+    /// A byte count or counter from Docker. Docker reports -1 for sizes it
+    /// hasn't computed (e.g. a volume's UsageData.Size); taking that as
+    /// unsigned wraps to 2^64-1 and the next sum traps. Negative or missing
+    /// values count as 0.
+    static func byteCount(_ value: Any?) -> UInt64 {
+        guard let number = value as? NSNumber else { return 0 }
+        let signed = number.int64Value
+        return signed > 0 ? UInt64(signed) : 0
+    }
+}
+
 struct ContainerSummary: Identifiable, Equatable {
     let id: String
     let name: String
@@ -31,6 +43,11 @@ struct ContainerSummary: Identifiable, Equatable {
         }
         portsLabel = Array(Set(ports)).sorted().joined(separator: ", ")
         labels = (dict["Labels"] as? [String: String]) ?? [:]
+        imageID = dict["ImageID"] as? String ?? ""
+        created = Date(timeIntervalSince1970: (dict["Created"] as? NSNumber)?.doubleValue ?? 0)
+        volumeNames = (dict["Mounts"] as? [[String: Any]] ?? []).compactMap { mount in
+            (mount["Type"] as? String) == "volume" ? mount["Name"] as? String : nil
+        }
         var publicPorts: Set<Int> = []
         for entry in (dict["Ports"] as? [[String: Any]] ?? []) {
             if (entry["Type"] as? String) == "tcp", let publicPort = entry["PublicPort"] as? Int {
@@ -53,6 +70,62 @@ struct ContainerSummary: Identifiable, Equatable {
     }
 
     let labels: [String: String]
+    let imageID: String
+    let created: Date
+    /// Named volumes mounted (anonymous ones included, by their hash name).
+    let volumeNames: [String]
+
+    // MARK: Derived from Docker's status text
+
+    enum Health: String {
+        case healthy, unhealthy, starting
+    }
+
+    /// Docker appends "(healthy)", "(unhealthy)" or "(health: starting)" to
+    /// the status of containers that define a healthcheck.
+    var health: Health? {
+        if status.hasSuffix("(healthy)") { return .healthy }
+        if status.hasSuffix("(unhealthy)") { return .unhealthy }
+        if status.hasSuffix("(health: starting)") { return .starting }
+        return nil
+    }
+
+    /// The status without the health suffix (health gets its own chip).
+    var statusText: String {
+        guard let open = status.lastIndex(of: "("), health != nil else { return status }
+        return status[..<open].trimmingCharacters(in: .whitespaces)
+    }
+
+    /// "Exited (137) 2 hours ago" → 137.
+    var exitCode: Int? {
+        guard state == "exited", let open = status.firstIndex(of: "("),
+              let close = status[open...].firstIndex(of: ")") else { return nil }
+        return Int(status[status.index(after: open)..<close])
+    }
+
+    /// Ended on its own with a failure. A clean exit (0) or death by the
+    /// signals `docker stop` / Ctrl-C send — 128+SIGINT(2), +SIGKILL(9),
+    /// +SIGTERM(15) — counts as stopped, not crashed.
+    var isCrashed: Bool {
+        if state == "dead" { return true }
+        guard let code = exitCode else { return false }
+        return ![0, 130, 137, 143].contains(code)
+    }
+
+    /// Needs a look: crashed, unhealthy, or stuck restarting.
+    var hasProblem: Bool {
+        isCrashed || health == .unhealthy || state == "restarting"
+    }
+
+    /// State shown on the chip: "crashed" separates failures from stops.
+    var displayState: String { isCrashed ? "crashed" : state }
+
+    /// A container whose image is only an ID (untagged / since re-tagged)
+    /// shows a short form instead of 71 characters of sha256.
+    var imageLabel: String {
+        guard image.hasPrefix("sha256:") else { return image }
+        return "untagged " + image.dropFirst("sha256:".count).prefix(12)
+    }
 }
 
 struct ImageSummary: Identifiable, Equatable {
@@ -60,6 +133,10 @@ struct ImageSummary: Identifiable, Equatable {
     let repoTag: String
     let sizeLabel: String
     let createdLabel: String
+    let sizeBytes: Int
+    let created: Date
+
+    var isDangling: Bool { repoTag == "<dangling>" }
 
     var shortID: String {
         String(id.replacingOccurrences(of: "sha256:", with: "").prefix(12))
@@ -70,12 +147,15 @@ struct ImageSummary: Identifiable, Equatable {
         self.id = id
         let tags = (dict["RepoTags"] as? [String]) ?? []
         repoTag = tags.first(where: { $0 != "<none>:<none>" }) ?? "<dangling>"
-        let size = (dict["Size"] as? Int) ?? 0
+        let size = Int(clamping: DockerJSON.byteCount(dict["Size"]))
+        sizeBytes = size
         sizeLabel = ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file)
-        if let created = dict["Created"] as? Double {
+        if let created = (dict["Created"] as? NSNumber)?.doubleValue {
+            self.created = Date(timeIntervalSince1970: created)
             let formatter = RelativeDateTimeFormatter()
-            createdLabel = formatter.localizedString(for: Date(timeIntervalSince1970: created), relativeTo: Date())
+            createdLabel = formatter.localizedString(for: self.created, relativeTo: Date())
         } else {
+            self.created = .distantPast
             createdLabel = ""
         }
     }

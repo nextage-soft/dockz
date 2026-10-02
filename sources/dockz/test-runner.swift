@@ -27,6 +27,12 @@ enum TestRunner {
         advancedSettings()
         portBindAddresses()
         guestTimeZone()
+        environmentTransports()
+        environmentCatalog()
+        windowsEngineStats()
+        environmentGuide()
+        tlsClientKeyFlow()
+        listFilters()
 
         print("")
         if failures.isEmpty {
@@ -40,12 +46,12 @@ enum TestRunner {
 
     // MARK: - Assertions
 
-    private static func expect(_ condition: Bool, _ label: String) {
+    static func expect(_ condition: Bool, _ label: String) {
         checks += 1
         if !condition { failures.append(label) }
     }
 
-    private static func expectEqual<T: Equatable>(_ a: T, _ b: T, _ label: String) {
+    static func expectEqual<T: Equatable>(_ a: T, _ b: T, _ label: String) {
         checks += 1
         if a != b { failures.append("\(label) — got \(a), expected \(b)") }
     }
@@ -162,6 +168,169 @@ enum TestRunner {
             .hasPrefix("kubeadm join") == true, "k8s join capture")
         expect(MachineDistro.by(id: "alpine-3.22")?.supportedEngines == [.k3s], "alpine → k3s only")
         expect(MachineDistro.by(id: "debian-13")?.supportedEngines == [.k3s, .k8s], "debian → k3s+k8s")
+    }
+
+    /// Remote environments: input that reaches /usr/bin/ssh must never be
+    /// parsed as an option, and every endpoint maps to the CLI's own variables.
+    private static func environmentTransports() {
+        typealias SSH = SSHDockerConnector
+        expect(SSH.validationError(.init(destination: "deploy@10.0.1.5", port: 22)) == nil, "ssh: user@host ok")
+        expect(SSH.validationError(.init(destination: "prod-alias", port: nil)) == nil, "ssh: config alias ok")
+        expect(SSH.validationError(.init(destination: "-oProxyCommand=sh", port: nil)) != nil,
+               "ssh: leading dash rejected (option injection)")
+        expect(SSH.validationError(.init(destination: "a b", port: nil)) != nil, "ssh: whitespace rejected")
+        expect(SSH.validationError(.init(destination: "h", port: 70000)) != nil, "ssh: port range")
+
+        let args = SSH.requestArguments(.init(destination: "deploy@h", port: 2222))
+        if let dash = args.firstIndex(of: "--") {
+            expectEqual(args[dash + 1], "deploy@h", "ssh: destination follows --")
+            expectEqual(Array(args[(dash + 2)...]), ["docker", "system", "dial-stdio"], "ssh: dial-stdio command")
+        } else {
+            expect(false, "ssh: -- separator present")
+        }
+        expect(args.contains("BatchMode=yes") && args.contains("ControlMaster=no"), "ssh: batch + mux client")
+        expect(SSH.controlPath(for: .init(destination: String(repeating: "x", count: 300), port: 22)).utf8.count < 104,
+               "ssh: control path fits unix socket limit")
+
+        let sshEnv = DockerEndpoint.ssh(.init(destination: "deploy@h", port: 2222)).cliEnvironment
+        expectEqual(sshEnv["DOCKER_HOST"], "ssh://deploy@h:2222", "cli: ssh DOCKER_HOST")
+        let certs = URL(fileURLWithPath: "/tmp/certs")
+        let probeEnv = DockerEndpoint.tls(.init(host: "fd00::5", port: 2376, certDirectory: certs,
+                                                clientKey: .pemFile)).cliEnvironment
+        expectEqual(probeEnv["DOCKER_HOST"], "tcp://[fd00::5]:2376", "cli: tls ipv6 bracketed")
+        expectEqual(probeEnv["DOCKER_TLS_VERIFY"], "1", "cli: tls verify on")
+        expectEqual(probeEnv["DOCKER_CERT_PATH"], "/tmp/certs", "cli: cert path")
+        let id = UUID()
+        let enclaveEnv = DockerEndpoint.tls(.init(host: "h", port: 2376, certDirectory: certs,
+                                                  clientKey: .secureEnclave(environmentID: id))).cliEnvironment
+        expectEqual(enclaveEnv, ["DOCKER_HOST": "unix://\(DockerCLISocketProxy.socketPath(for: id))"],
+                    "cli: enclave-key TLS goes through the relay, no cert path handed out")
+        expect(DockerCLISocketProxy.socketPath(for: id).utf8.count < 104, "cli: relay path fits unix socket limit")
+        expect(TLSDockerConnector.isIPAddress("10.0.2.8") && TLSDockerConnector.isIPAddress("fd00::5")
+               && !TLSDockerConnector.isIPAddress("docker.example.com"), "tls: IP vs name (no SNI for IPs)")
+
+        setenv("DOCKER_CERT_PATH", "/stale/certs", 1)
+        let resolved = DockerCLI.Resolved(path: "/usr/bin/true", configDirectory: nil)
+        let merged = DockerCLI.environment(for: resolved, endpoint: .ssh(.init(destination: "h", port: nil)))
+        unsetenv("DOCKER_CERT_PATH")
+        expect(merged["DOCKER_CERT_PATH"] == nil, "cli: inherited TLS vars cleared for ssh")
+
+    }
+
+    /// Setup guide commands follow the form's input, and failure hints map
+    /// real transport errors (texts captured from live E2E runs) to a fix.
+    private static func environmentGuide() {
+        expectEqual(EnvironmentSetupGuide.serverSAN(for: "10.0.2.8"), "IP:10.0.2.8,IP:127.0.0.1", "guide: SAN for IPv4")
+        expectEqual(EnvironmentSetupGuide.serverSAN(for: "docker.example.com"), "DNS:docker.example.com,IP:127.0.0.1",
+                    "guide: SAN for DNS name")
+        expectEqual(EnvironmentSetupGuide.serverSAN(for: "fd00::5"), "IP:fd00::5,IP:127.0.0.1", "guide: SAN for IPv6")
+        expectEqual(EnvironmentSetupGuide.serverSAN(for: "[fd00::5]"), "IP:fd00::5,IP:127.0.0.1", "guide: SAN strips IPv6 brackets")
+        expectEqual(EnvironmentSetupGuide.serverSAN(for: "999.1.1.1"), "DNS:999.1.1.1,IP:127.0.0.1", "guide: invalid IPv4 is not an IP SAN")
+        expectEqual(EnvironmentSetupGuide.serverSAN(for: "127.0.0.1"), "IP:127.0.0.1", "guide: loopback SAN not duplicated")
+
+        let ssh = EnvironmentSetupGuide.steps(for: .ssh, address: "deploy@10.0.1.5", port: 2222).flatMap(\.commands)
+        expect(ssh.contains("ssh-copy-id -p 2222 deploy@10.0.1.5"), "guide: ssh-copy-id uses input")
+        expect(ssh.contains { $0.hasPrefix("ssh -p 2222 deploy@10.0.1.5 docker version") }, "guide: ssh check uses input")
+        let tls = EnvironmentSetupGuide.steps(for: .tls, address: "10.0.2.8", port: 2377).flatMap(\.commands).joined()
+        expect(tls.contains("tcp://0.0.0.0:2377") && tls.contains("-days 825"), "guide: tls port + validity")
+        expect(!tls.contains("-out key.pem") && !tls.contains("-out cert.pem"), "guide: server never makes the Mac's key")
+        let signing = EnvironmentSetupGuide.signingCommands(for: "-----BEGIN CERTIFICATE REQUEST-----\nAA==\n-----END CERTIFICATE REQUEST-----\n")
+        expect(signing.contains("-days \(EnvironmentSetupGuide.clientCertificateDays)") && signing.contains("clientAuth"),
+               "guide: short-lived client-auth signing")
+
+        typealias T = EnvironmentTroubleshooting
+        expect(T.hint(for: .ssh, error: "root@127.0.0.1: Permission denied (publickey,password,keyboard-interactive).")?
+            .contains("ssh-add") == true, "hint: ssh key rejected")
+        expect(T.hint(for: .tls, error: "handshakeFailed(sslError([Error: 268435581 error:1000007d:SSL routines:OPENSSL_internal:CERTIFICATE_VERIFY_FAILED]))")?
+            .contains("ca.pem") == true, "hint: tls server certificate untrusted")
+        expect(T.hint(for: .tls, error: "handshakeFailed(sslError([Error: 268436502 error:10000416:SSL routines:OPENSSL_internal:SSLV3_ALERT_CERTIFICATE_UNKNOWN, error:1000045c:SSL routines:OPENSSL_internal:TLSV1_ALERT_UNKNOWN_CA]))")?
+            .contains("rejected this Mac") == true, "hint: tls client certificate refused")
+        expect(T.hint(for: .tls, error: TLSClientKeyVault.VaultError.locked.localizedDescription)?
+            .contains("Touch ID") == true, "hint: tls locked")
+        expect(T.hint(for: .ssh, error: "ssh: connect to host h port 22: Connection refused")?.contains("sshd") == true,
+               "hint: ssh refused")
+        expect(T.hint(for: .tls, error: "connect: Connection refused")?.contains("daemon.json") == true, "hint: tls refused")
+        expect(T.hint(for: .socket, error: "/x/docker.sock: No such file or directory")?.contains("running") == true,
+               "hint: socket missing")
+        expect(T.hint(for: .ssh, error: "bash: docker: command not found")?.contains("PATH") == true, "hint: docker missing")
+        expect(T.hint(for: .ssh, error: "something unforeseen") == nil, "hint: unknown → no guess")
+    }
+
+    /// The environment list survives a save/load round trip; a TLS
+    /// environment needs CA, enclave key and signed cert, and no private key
+    /// text is ever stored.
+    private static func environmentCatalog() {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("dockz-env-\(UUID().uuidString)", isDirectory: true)
+        try? FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let paths = DockzPaths(baseDirectory: root)
+
+        let ssh = DockerEnvironment(name: "prod", kind: .ssh, address: "deploy@h", port: nil)
+        var tls = DockerEnvironment(name: "stage", kind: .tls, address: "10.0.2.8", port: 2376)
+        expect(EnvironmentCatalog.save([ssh, tls], paths: paths), "env: saved")
+        expectEqual(EnvironmentCatalog.load(paths: paths), [ssh, tls], "env: round trip")
+
+        expect(tls.validationError(paths: paths)?.contains("ca.pem") == true, "env: tls needs the CA first")
+        let directory = EnvironmentCatalog.certDirectory(for: tls.id, paths: paths)
+        let certificate = "-----BEGIN CERTIFICATE-----\nAA==\n-----END CERTIFICATE-----\n"
+        try? EnvironmentCatalog.storeCertificate(certificate, as: "ca.pem", for: tls.id, paths: paths)
+        expect(tls.validationError(paths: paths)?.contains("key") == true, "env: tls then needs this Mac's key")
+        // Stand-in for the Secure Enclave handle (validation only checks it exists).
+        try? Data([1]).write(to: directory.appendingPathComponent(TLSClientKeyVault.keyFileName))
+        expect(tls.validationError(paths: paths)?.contains("certificate") == true, "env: tls then needs the signed cert")
+        try? EnvironmentCatalog.storeCertificate(certificate, as: "cert.pem", for: tls.id, paths: paths)
+        expect(tls.validationError(paths: paths) == nil, "env: tls complete")
+        let mode = (try? FileManager.default.attributesOfItem(atPath: directory.appendingPathComponent("cert.pem").path)[.posixPermissions] as? Int) ?? nil
+        expectEqual(mode, 0o600, "env: stored files private to the user")
+        let listMode = (try? FileManager.default.attributesOfItem(atPath: EnvironmentCatalog.fileURL(paths: paths).path)[.posixPermissions] as? Int) ?? nil
+        expectEqual(listMode, 0o600, "env: environments.json private to the user")
+
+        let keyText = "-----BEGIN PRIVATE KEY-----\nAA==\n-----END PRIVATE KEY-----\n"
+        expect((try? EnvironmentCatalog.storeCertificate(certificate + keyText, as: "cert.pem", for: tls.id, paths: paths)) == nil,
+               "env: text containing a private key is refused")
+        expect((try? EnvironmentCatalog.storeCertificate("hello", as: "ca.pem", for: tls.id, paths: paths)) == nil,
+               "env: non-PEM rejected")
+        expect((try? EnvironmentCatalog.storeCertificate(certificate, as: "key.pem", for: tls.id, paths: paths)) != nil
+               && !FileManager.default.fileExists(atPath: directory.appendingPathComponent("key.pem").path),
+               "env: only ca.pem / cert.pem can be stored")
+
+        try? keyText.write(to: directory.appendingPathComponent("key.pem"), atomically: true, encoding: .utf8)
+        expectEqual(EnvironmentCatalog.removeLegacyKeyFiles([tls], paths: paths).map(\.id), [tls.id],
+                    "env: legacy key.pem found")
+        expect(!FileManager.default.fileExists(atPath: directory.appendingPathComponent("key.pem").path),
+               "env: legacy key.pem deleted")
+
+        tls.port = 0
+        expect(tls.validationError(paths: paths) != nil, "env: tls port range")
+        EnvironmentCatalog.removeData(for: tls.id, paths: paths)
+        expect(!FileManager.default.fileExists(atPath: EnvironmentCatalog.certDirectory(for: tls.id, paths: paths).path),
+               "env: cert folder removed with the environment")
+    }
+
+    /// Windows engines report CPU in 100 ns ticks and memory as a private
+    /// working set; /info tells the two kinds apart.
+    private static func windowsEngineStats() {
+        let stats = ContainerStats(dict: [
+            "read": "2026-10-01T03:00:01.5000000Z",
+            "preread": "2026-10-01T03:00:00.5000000Z",
+            "num_procs": 2,
+            "cpu_stats": ["cpu_usage": ["total_usage": 15_000_000.0]],
+            "precpu_stats": ["cpu_usage": ["total_usage": 5_000_000.0]],
+            "memory_stats": ["privateworkingset": 104_857_600.0],
+        ])
+        // 1 s × 2 processors = 20,000,000 ticks possible; 10,000,000 used → 50 %.
+        expect(abs((stats?.cpuPercent ?? 0) - 50) < 0.01, "win: cpu from 100ns ticks")
+        expectEqual(stats?.memoryUsedBytes, 104_857_600, "win: private working set")
+        expect(abs(ContainerStats.dockerTimestamp("2026-10-01T03:00:00.123456789Z").truncatingRemainder(dividingBy: 1) - 0.123456789) < 1e-6,
+               "win: nanosecond timestamps")
+
+        let info = EngineInfo(dict: ["ServerVersion": "25.0.3", "OSType": "windows", "NCPU": 4,
+                                     "MemTotal": 8_589_934_592, "ContainersRunning": 2,
+                                     "OperatingSystem": "Windows Server 2022"])
+        expect(info?.isWindows == true, "info: windows detected")
+        expectEqual(info?.cpuCount, 4, "info: cpu count")
+        expect(EngineInfo(dict: ["OSType": "linux"]) == nil, "info: missing version rejected")
     }
 
     /// Forwarded ports listen where docker published them: wildcard by
@@ -308,6 +477,31 @@ enum TestRunner {
         expectEqual(breakdown.volumesReclaimable, 3_800_000_000, "df volume refcount 0 reclaimable")
         expectEqual(breakdown.buildCacheReclaimable, 1_700_000_000, "df build cache not in use")
         expectEqual(breakdown.totalBytes, 19_600_000_000, "df total sums categories")
+
+        // Docker reports -1 for sizes it hasn't computed. Taken as unsigned
+        // that wrapped to 2^64-1 and the next sum trapped (crash 2026-10-01,
+        // MonitorParse.diskBreakdown on a volume's UsageData.Size).
+        let unknown: [String: Any] = [
+            "LayersSize": -1,
+            "Images": [["Size": -1, "Containers": 0], ["Size": 100, "Containers": 0]],
+            "Containers": [["SizeRw": -1], ["SizeRw": 50]],
+            "Volumes": [["UsageData": ["Size": -1, "RefCount": -1]], ["UsageData": ["Size": 7, "RefCount": 0]]],
+            "BuildCache": [["Size": -1, "InUse": false]],
+        ]
+        let partial = MonitorParse.diskBreakdown(from: unknown)
+        expectEqual([partial.imagesReclaimable, partial.containersBytes, partial.volumesBytes, partial.totalBytes],
+                    [100, 50, 7, 57], "df: -1 sizes count as 0, no overflow")
+        expectEqual([DockerJSON.byteCount(-1), DockerJSON.byteCount(nil), DockerJSON.byteCount("12"),
+                     DockerJSON.byteCount(42), DockerJSON.byteCount(2.5e9)],
+                    [0, 0, 0, 42, 2_500_000_000], "byteCount: negative / missing / non-number → 0")
+        expectEqual(ImageSummary(dict: ["Id": "x", "Size": -1])?.sizeBytes, 0, "image: unknown size → 0")
+        // A partial /proc/meminfo read (MemTotal line missing).
+        var odd = first
+        odd.memTotalKiB = 0
+        odd.memAvailableKiB = 512
+        expectEqual(odd.memUsedKiB, 0, "meminfo: available > total doesn't underflow")
+        odd.memTotalKiB = 2048
+        expectEqual(odd.memUsedKiB, 1536, "meminfo: used = total - available")
     }
 
     /// Cleanup panel plumbing: docker's SpaceReclaimed parses in both integer
@@ -484,13 +678,13 @@ enum TestRunner {
 
         let managed = DockerCLI.Resolved(path: paths.managedDockerCLI.path,
                                          configDirectory: paths.managedDockerConfig.path)
-        let environment = DockerCLI.environment(for: managed, socketPath: "/tmp/d.sock")
+        let environment = DockerCLI.environment(for: managed, endpoint: .unixSocket(path: "/tmp/d.sock"))
         expectEqual(environment["DOCKER_HOST"], "unix:///tmp/d.sock", "DOCKER_HOST wired to socket")
         expectEqual(environment["DOCKER_CONFIG"], paths.managedDockerConfig.path,
                     "managed CLI sets DOCKER_CONFIG so compose plugin resolves")
 
         let system = DockerCLI.Resolved(path: "/opt/homebrew/bin/docker", configDirectory: nil)
-        let systemEnvironment = DockerCLI.environment(for: system, socketPath: "/tmp/d.sock")
+        let systemEnvironment = DockerCLI.environment(for: system, endpoint: .unixSocket(path: "/tmp/d.sock"))
         expect(systemEnvironment["DOCKER_CONFIG"] == ProcessInfo.processInfo.environment["DOCKER_CONFIG"],
                "system CLI keeps the user's own DOCKER_CONFIG")
 

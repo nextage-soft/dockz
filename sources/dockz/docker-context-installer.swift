@@ -23,10 +23,15 @@ enum DockerCLI {
         return Resolved(path: managed, configDirectory: paths.managedDockerConfig.path)
     }
 
-    /// Environment for running the resolved CLI against the DockZ engine.
-    static func environment(for resolved: Resolved, socketPath: String) -> [String: String] {
+    /// Environment for running the resolved CLI against `endpoint`. Inherited
+    /// targeting variables are cleared first so a TLS setting from the user's
+    /// shell can't leak into, say, an SSH environment.
+    static func environment(for resolved: Resolved, endpoint: DockerEndpoint) -> [String: String] {
         var environment = ProcessInfo.processInfo.environment
-        environment["DOCKER_HOST"] = "unix://\(socketPath)"
+        for key in ["DOCKER_HOST", "DOCKER_TLS_VERIFY", "DOCKER_CERT_PATH", "DOCKER_CONTEXT"] {
+            environment[key] = nil
+        }
+        environment.merge(endpoint.cliEnvironment) { _, new in new }
         if let configDirectory = resolved.configDirectory {
             environment["DOCKER_CONFIG"] = configDirectory
         }

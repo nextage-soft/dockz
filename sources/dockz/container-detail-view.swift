@@ -6,6 +6,7 @@ struct ContainerDetailView: View {
     let container: ContainerSummary
 
     @State private var confirmRemove = false
+    @State private var confirmKill = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -24,11 +25,17 @@ struct ContainerDetailView: View {
             tabContent
         }
         .navigationTitle(container.name)
-        .confirmationDialog("Remove \(container.name)?", isPresented: $confirmRemove,
+        .confirmationDialog("Remove \(container.name)\(store.targetSuffix)?", isPresented: $confirmRemove,
                             titleVisibility: .visible) {
             Button("Remove — data outside volumes is lost", role: .destructive) {
                 store.removeContainer(container)
                 store.closeDetail()
+            }
+        }
+        .confirmationDialog("Kill \(container.name)\(store.targetSuffix)?", isPresented: $confirmKill,
+                            titleVisibility: .visible) {
+            Button("Kill — stops immediately, no graceful shutdown", role: .destructive) {
+                store.containerAction("kill", container)
             }
         }
     }
@@ -45,10 +52,11 @@ struct ContainerDetailView: View {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 8) {
                     Text(container.name).font(.title3.weight(.semibold))
-                    StatusChip(state: container.state)
+                    StatusChip(state: container.displayState)
+                    if let health = container.health { HealthChip(health: health) }
                 }
                 HStack(spacing: 8) {
-                    Text("\(container.shortID)  ·  \(container.image)")
+                    Text("\(container.shortID)  ·  \(container.imageLabel)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     ForEach(container.publicTCPPorts, id: \.self) { port in
@@ -84,7 +92,10 @@ struct ContainerDetailView: View {
                     actionButton("Stop", icon: "stop.fill") { store.containerAction("stop", container) }
                 }
                 actionButton("Restart", icon: "arrow.clockwise") { store.containerAction("restart", container) }
-                actionButton("Kill", icon: "bolt.fill") { store.containerAction("kill", container) }
+                actionButton("Kill", icon: "bolt.fill") {
+                    // On a remote engine an unconfirmed kill could hit production.
+                    if store.environments.isLocal { store.containerAction("kill", container) } else { confirmKill = true }
+                }
             } else {
                 actionButton("Start", icon: "play.fill") { store.containerAction("start", container) }
             }

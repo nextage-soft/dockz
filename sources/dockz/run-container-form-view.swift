@@ -75,7 +75,7 @@ struct RunContainerFormView: View {
                                            addLabel: "Add label", text: $form.labelsText)
                     }
                     policyCard
-                    AdvancedSettingsCard(settings: $form.advanced)
+                    AdvancedSettingsCard(settings: $form.advanced, isWindowsEngine: store.engineInfo?.isWindows == true)
                 }
                 .padding(16)
             }

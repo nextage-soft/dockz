@@ -3,10 +3,26 @@ import SwiftUI
 struct NetworksListView: View {
     @ObservedObject var store: DashboardStore
     @State private var newNetworkName = ""
+    @State private var searchText = ""
+    @AppStorage("dockz.list.networks.scope") private var scope = "all"
+
+    private let filter = ListFilters.networks
+
+    private var filtered: [NetworkSummary] {
+        filter.apply(store.networks, scope: scope, query: searchText, sort: "name")
+    }
 
     var body: some View {
         VStack(spacing: 0) {
-            List(store.networks) { network in
+            ListHeaderBar(
+                summary: "\(store.networks.count) networks",
+                prompt: "Filter networks",
+                searchText: $searchText,
+                scopes: filter.options(for: store.networks, query: searchText),
+                scope: $scope
+            )
+            Divider()
+            List(filtered) { network in
                 HStack {
                     VStack(alignment: .leading, spacing: 3) {
                         HStack(spacing: 6) {
@@ -49,6 +65,11 @@ struct NetworksListView: View {
                 .padding(.vertical, 3)
             }
             .listStyle(.inset)
+            .overlay {
+                if !store.networks.isEmpty && filtered.isEmpty {
+                    Text("No networks match").foregroundStyle(.secondary)
+                }
+            }
             Divider()
             HStack {
                 TextField("New network name (bridge driver)", text: $newNetworkName)
