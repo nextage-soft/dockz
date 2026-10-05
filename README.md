@@ -6,10 +6,19 @@
 plus a Docker Desktop–style dashboard and Multipass-style Linux machines.</p>
 
 <p align="center">
+  <a href="https://github.com/nextage-soft/dockz/releases/latest"><img src="https://img.shields.io/github/v/release/nextage-soft/dockz?label=release&color=2563eb" alt="latest release"></a>
+  <a href="https://github.com/nextage-soft/dockz/actions/workflows/ci.yml"><img src="https://github.com/nextage-soft/dockz/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/platform-macOS%2015%2B%20·%20Apple%20Silicon-black" alt="platform">
   <img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="license">
   <img src="https://img.shields.io/badge/Swift%20dependencies-Apple%20swift--nio--ssl%20only-success" alt="dependencies">
   <img src="https://img.shields.io/badge/app%20size-~8%20MB-orange" alt="size">
+</p>
+
+<p align="center">
+  <a href="https://github.com/nextage-soft/dockz/releases/latest"><b>⬇️ Download the latest DMG</b></a>
+  &nbsp;·&nbsp; <a href="https://dockz.pages.dev">Website</a>
+  &nbsp;·&nbsp; <a href="CHANGELOG.md">Changelog</a>
+  &nbsp;·&nbsp; <a href="docs/deployment-guide.md">Signing guide</a>
 </p>
 
 <p align="center">
@@ -45,8 +54,10 @@ as a normal Docker context: `docker`, `docker compose`, and buildx just work.
 | | |
 | --- | --- |
 | 🐳&nbsp;**Real Docker engine** | Genuine `dockerd` in Alpine Linux, exposed as the `dockz` context — `docker`, `docker compose`, buildx all work. |
-| 🖥️&nbsp;**Management dashboard** | Docker Desktop / Portainer style: containers, images, volumes, networks, registries, compose **stacks** — create/edit forms, live logs, stats, inspect. |
+| 🖥️&nbsp;**Management dashboard** | Docker Desktop / Portainer style: containers, images, volumes, networks, registries, compose **stacks** — create/edit forms, live logs, stats, inspect. Every list has scope chips, search and sort; containers are grouped by stack, with crashes and unhealthy health checks flagged (⌘F / ⌘R / ⌘N). |
+| 📊&nbsp;**Monitor** | Live CPU, memory, network and disk I/O per container, VM vitals, a storage breakdown, and cleanup of unused images, volumes and build cache. |
 | 🌐&nbsp;**Multiple environments** | Manage other Docker engines too — remote hosts over **SSH** or **mutual TLS**, or another engine's socket on this Mac — and switch every tab between them from the sidebar (⌘1…⌘9). Management only: nothing is joined or shared. |
+| 🛟&nbsp;**Self-healing VM** | If dockerd stops answering or the guest kernel fails, DockZ restarts the VM itself (crash-loop limited) and keeps the console logs of the last boots. |
 | 📦&nbsp;**Linux machines** | Multipass-style VMs (Alpine / Debian / Ubuntu, ARM64) over SSH, with one-click **k3s / k8s** master/node cluster templates. |
 | 🚀&nbsp;**One-window onboarding** | First launch builds the guest image in a throwaway netboot VM and installs the CLI in parallel — when it closes, `docker ps` works. |
 | 🔌&nbsp;**Auto port forwarding** | Published TCP + UDP ports mirrored on `localhost` by watching the Docker events API. |
@@ -64,7 +75,7 @@ Apache-2.0, no accounts, no telemetry, no Electron.
 
 What makes it different from the usual suspects:
 
-- **Genuinely tiny and native.** The app bundle is ~8 MB of Swift/SwiftUI on
+- **Genuinely tiny and native.** The app bundle is ~8 MB (a 3.5 MB download) of Swift/SwiftUI on
   Apple's Virtualization.framework. No Electron shell, no bundled node/qemu, no
   background updater. The 64 GB VM disk is APFS-sparse — a fresh engine really
   occupies ~1.3 GB.
@@ -107,8 +118,9 @@ What makes it different from the usual suspects:
 | 📸 VM snapshots + rollback | ✅ APFS CoW        |       ❌        |       ❌        |       ❌        |       ✅        |
 | 🔓 Open source             |   ✅ fully         |    partially    |       ❌        |       ✅        |       ✅        |
 
-*Honest caveats*: DockZ is Apple Silicon + macOS 15+ only, young, not yet
-notarized, and tuned for the common paths rather than every edge case. If you
+*Honest caveats*: DockZ is Apple Silicon + macOS 15+ only, young, its releases
+aren't notarized until the project's Developer ID is set up (allow it once in
+System Settings), and it is tuned for the common paths rather than every edge case. If you
 need x86 Macs, Windows/Linux parity, or a vendor SLA, the incumbents above are
 the safer pick — DockZ's lane is "everything a Mac developer needs, minus the
 bloat and the license worries."
@@ -195,18 +207,11 @@ security find-identity -v -p codesigning
 SIGN_IDENTITY="Apple Development: you@example.com (TEAMID)" scripts/build-and-bundle-app.sh
 ```
 
-**Re-signing a downloaded DockZ.app** (e.g. from a release) with your own
-signature — this both satisfies the entitlement and clears Gatekeeper's
-"unidentified developer" complaint:
-
-```bash
-xattr -dr com.apple.quarantine DockZ.app
-codesign --force --deep --options runtime \
-  --entitlements scripts/dockz.entitlements \
-  --sign - DockZ.app                      # "-" = ad-hoc; or your identity
-```
-
-Verify the entitlement took:
+**Running or re-signing a downloaded release** (Gatekeeper's "Open Anyway",
+`xattr`, signing with your own certificate while keeping the virtualization
+entitlement) is covered step by step in
+[docs/deployment-guide.md](docs/deployment-guide.md). Quick check that a signed
+copy will boot its VM:
 
 ```bash
 codesign -d --entitlements - /Applications/DockZ.app   # must list …virtualization
@@ -224,8 +229,12 @@ own docker install, switch once: `docker context use dockz` (or per-command:
 `docker --context dockz …`).
 
 Open the dashboard from the menu bar icon (**Open Dashboard…**, ⌘D) to manage
-containers, images, volumes, networks, registries, stacks, and machines, and to
-adjust VM resources, snapshots, and the data folder in **Settings**.
+containers, images, volumes, networks, registries, stacks and machines; watch
+per-container CPU, memory and I/O (and clean up disk space) in **Monitor**; add
+other Docker engines under **Environments** and switch to them from the top of
+the sidebar (⌘1…⌘9). Every list has filters and search (⌘F, ⌘R to refresh,
+⌘N to create). **Settings** holds VM resources, time zone, snapshots, the data
+folder, and — under **Advanced** — the engine's `daemon.json`.
 
 ## Architecture
 

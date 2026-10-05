@@ -123,6 +123,13 @@ jobs:
         run: |
           notes="$RUNNER_TEMP/notes.md"
           {
+            # This version's section of CHANGELOG.md (heading excluded), if any.
+            awk -v v="$APP_VERSION" '
+              index($0, "## [" v "]") == 1 { found = 1; next }
+              found && /^## \[/ { exit }
+              found { print }
+            ' CHANGELOG.md
+            echo
             echo "### Install"
             echo "Open \`$(basename "$DMG")\`, drag **DockZ** to Applications, then launch it."
             echo "Requires macOS 15+ on Apple Silicon. First launch builds the Docker VM image (a few minutes)."
