@@ -7,7 +7,7 @@ plus a Docker Desktop–style dashboard and Multipass-style Linux machines.</p>
 
 <p align="center">
   <a href="https://github.com/nextage-soft/dockz/releases/latest"><img src="https://img.shields.io/github/v/release/nextage-soft/dockz?label=release&color=2563eb" alt="latest release"></a>
-  <a href="https://github.com/nextage-soft/dockz/actions/workflows/ci.yml"><img src="https://github.com/nextage-soft/dockz/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/nextage-soft/dockz/actions/workflows/ci.yml"><img src="https://github.com/nextage-soft/dockz/actions/workflows/ci.yml/badge.svg?event=pull_request" alt="CI"></a>
   <img src="https://img.shields.io/badge/platform-macOS%2015%2B%20·%20Apple%20Silicon-black" alt="platform">
   <img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="license">
   <img src="https://img.shields.io/badge/Swift%20dependencies-Apple%20swift--nio--ssl%20only-success" alt="dependencies">

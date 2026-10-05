@@ -1,8 +1,10 @@
 name: CI
 
+# Runs on pull requests (and by hand). Not on pushes to master: the branch
+# ruleset only merges PRs that are up to date with master and passed
+# `build-and-test`, so master gets exactly the code CI already checked —
+# a post-merge run would only rebuild it. Releases run their own tests.
 on:
-  push:
-    branches: [main, master]
   pull_request:
   workflow_dispatch:
 
@@ -20,9 +22,9 @@ jobs:
           fetch-depth: 0
       - id: filter
         env:
-          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          BASE: ${{ github.event.pull_request.base.sha }}
         run: |
-          # No usable base (manual run, new branch, force push): build.
+          # No usable base (manual run): build.
           if [[ -z "$BASE" || "$BASE" =~ ^0+$ ]] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
             echo "code=true" >> "$GITHUB_OUTPUT"; exit 0
           fi
