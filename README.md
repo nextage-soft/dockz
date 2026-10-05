@@ -118,8 +118,9 @@ What makes it different from the usual suspects:
 | 📸 VM snapshots + rollback | ✅ APFS CoW        |       ❌        |       ❌        |       ❌        |       ✅        |
 | 🔓 Open source             |   ✅ fully         |    partially    |       ❌        |       ✅        |       ✅        |
 
-*Honest caveats*: DockZ is Apple Silicon + macOS 15+ only, young, not yet
-notarized, and tuned for the common paths rather than every edge case. If you
+*Honest caveats*: DockZ is Apple Silicon + macOS 15+ only, young, its releases
+aren't notarized until the project's Developer ID is set up (allow it once in
+System Settings), and it is tuned for the common paths rather than every edge case. If you
 need x86 Macs, Windows/Linux parity, or a vendor SLA, the incumbents above are
 the safer pick — DockZ's lane is "everything a Mac developer needs, minus the
 bloat and the license worries."
@@ -206,18 +207,11 @@ security find-identity -v -p codesigning
 SIGN_IDENTITY="Apple Development: you@example.com (TEAMID)" scripts/build-and-bundle-app.sh
 ```
 
-**Re-signing a downloaded DockZ.app** (e.g. from a release) with your own
-signature — this both satisfies the entitlement and clears Gatekeeper's
-"unidentified developer" complaint:
-
-```bash
-xattr -dr com.apple.quarantine DockZ.app
-codesign --force --deep --options runtime \
-  --entitlements scripts/dockz.entitlements \
-  --sign - DockZ.app                      # "-" = ad-hoc; or your identity
-```
-
-Verify the entitlement took:
+**Running or re-signing a downloaded release** (Gatekeeper's "Open Anyway",
+`xattr`, signing with your own certificate while keeping the virtualization
+entitlement) is covered step by step in
+[docs/deployment-guide.md](docs/deployment-guide.md). Quick check that a signed
+copy will boot its VM:
 
 ```bash
 codesign -d --entitlements - /Applications/DockZ.app   # must list …virtualization
@@ -235,8 +229,12 @@ own docker install, switch once: `docker context use dockz` (or per-command:
 `docker --context dockz …`).
 
 Open the dashboard from the menu bar icon (**Open Dashboard…**, ⌘D) to manage
-containers, images, volumes, networks, registries, stacks, and machines, and to
-adjust VM resources, snapshots, and the data folder in **Settings**.
+containers, images, volumes, networks, registries, stacks and machines; watch
+per-container CPU, memory and I/O (and clean up disk space) in **Monitor**; add
+other Docker engines under **Environments** and switch to them from the top of
+the sidebar (⌘1…⌘9). Every list has filters and search (⌘F, ⌘R to refresh,
+⌘N to create). **Settings** holds VM resources, time zone, snapshots, the data
+folder, and — under **Advanced** — the engine's `daemon.json`.
 
 ## Architecture
 
