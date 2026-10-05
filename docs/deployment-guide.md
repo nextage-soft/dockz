@@ -25,6 +25,13 @@ app opens but the VM never starts. Every signing command below passes that file.
 2. Open the DMG and drag **DockZ** onto **Applications**.
 3. Launch DockZ. The first launch builds the Docker VM image (a few minutes).
 
+**Or with Homebrew** (installs the same latest release):
+```bash
+brew tap nextage-soft/dockz https://github.com/nextage-soft/dockz
+brew install --cask nextage-soft/dockz/dockz
+brew upgrade --cask --greedy dockz      # later, to update
+```
+
 **If macOS says DockZ "cannot be opened" / "Apple could not verify…"** the
 release was not notarized. Either:
 

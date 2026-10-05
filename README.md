@@ -143,6 +143,16 @@ never touched.
 
 ## Install / Build
 
+**Homebrew:**
+
+```bash
+brew tap nextage-soft/dockz https://github.com/nextage-soft/dockz
+brew install --cask nextage-soft/dockz/dockz
+```
+
+Update with `brew upgrade --cask --greedy dockz` (the cask follows the latest
+release).
+
 **Download:** grab `DockZ-<version>.dmg` from
 [Releases](https://github.com/nextage-soft/dockz/releases), open it and drag
 DockZ to Applications. Each release lists the DMG's SHA-256. Builds that are not

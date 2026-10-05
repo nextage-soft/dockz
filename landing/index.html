@@ -723,8 +723,9 @@
         <div class="install-card">
           <h3>1. Download</h3>
           <p class="hint">Grab <code class="mono">DockZ-&lt;version&gt;.dmg</code> from <a href="https://github.com/nextage-soft/dockz/releases/latest" target="_blank" rel="noopener">Releases</a>, drag DockZ to Applications, launch. Un-notarized builds: allow once in System Settings → Privacy &amp; Security → <em>Open Anyway</em>.</p>
-          <div class="code-block"><span class="c-comment"># optional: check the download</span>
-<span class="c-cmd">shasum</span> <span class="c-flag">-a 256 -c</span> DockZ-0.2.1.dmg.sha256</div>
+          <div class="code-block"><span class="c-comment"># or with Homebrew</span>
+<span class="c-cmd">brew tap</span> nextage-soft/dockz https://github.com/nextage-soft/dockz
+<span class="c-cmd">brew install</span> <span class="c-flag">--cask</span> nextage-soft/dockz/dockz</div>
         </div>
         <div class="install-card">
           <h3>2. …or build from source</h3>

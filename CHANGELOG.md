@@ -6,6 +6,11 @@ are taken from its section here.
 
 ## [Unreleased]
 
+### Added
+- Homebrew cask in this repository: `brew tap nextage-soft/dockz https://github.com/nextage-soft/dockz`
+  then `brew install --cask nextage-soft/dockz/dockz`. Releases now also attach a stable-named
+  `DockZ.dmg` that the cask installs.
+
 ## [0.2.1] - 2026-10-05
 
 The first downloadable release: grab `DockZ-0.2.1.dmg` from the release assets.

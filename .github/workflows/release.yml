@@ -87,6 +87,9 @@ jobs:
           export SIGN_IDENTITY="${SIGN_IDENTITY:--}"
           dmg="$(scripts/make-dmg.sh | tail -1)"
           echo "DMG=$dmg" >> "$GITHUB_ENV"
+          # Stable name for the Homebrew cask (Casks/dockz.rb), which always
+          # downloads releases/latest/download/DockZ.dmg.
+          cp "$dmg" build/DockZ.dmg
 
       - name: Notarize
         if: env.HAS_SIGNING == 'true' && env.HAS_NOTARY == 'true'
@@ -133,6 +136,12 @@ jobs:
             echo "### Install"
             echo "Open \`$(basename "$DMG")\`, drag **DockZ** to Applications, then launch it."
             echo "Requires macOS 15+ on Apple Silicon. First launch builds the Docker VM image (a few minutes)."
+            echo
+            echo "Or with Homebrew:"
+            echo '```bash'
+            echo "brew tap nextage-soft/dockz https://github.com/$GITHUB_REPOSITORY"
+            echo "brew install --cask nextage-soft/dockz/dockz"
+            echo '```'
             if [[ "${NOTARIZED:-}" != "true" ]]; then
               echo
               echo "> This build is not notarized. On first launch macOS blocks it: open"
@@ -142,9 +151,9 @@ jobs:
             echo "Signing it yourself or with your own certificate: [deployment guide](https://github.com/$GITHUB_REPOSITORY/blob/$GITHUB_REF_NAME/docs/deployment-guide.md)."
           } > "$notes"
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" "$DMG" "$DMG.sha256" --clobber
+            gh release upload "$GITHUB_REF_NAME" "$DMG" "$DMG.sha256" build/DockZ.dmg --clobber
           else
-            gh release create "$GITHUB_REF_NAME" "$DMG" "$DMG.sha256" \
+            gh release create "$GITHUB_REF_NAME" "$DMG" "$DMG.sha256" build/DockZ.dmg \
               --title "DockZ $APP_VERSION" --notes-file "$notes" --generate-notes --verify-tag
           fi
 
