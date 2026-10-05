@@ -1,0 +1,146 @@
+name: Release
+
+# Builds DockZ.dmg for users.
+# - Push a tag like v0.2.0 → tests, builds, publishes a GitHub Release with
+#   DockZ-0.2.0.dmg and its SHA-256.
+# - Run manually (Actions → Release → Run workflow) → same build, DMG kept as
+#   a workflow artifact only.
+#
+# Signing is optional and turns on when these repository secrets exist:
+#   DEVELOPER_ID_P12_BASE64    "Developer ID Application" cert + key, .p12, base64
+#   DEVELOPER_ID_P12_PASSWORD  password of that .p12
+# Notarization additionally needs an App Store Connect API key:
+#   NOTARY_KEY_P8_BASE64       AuthKey_XXXX.p8, base64
+#   NOTARY_KEY_ID              its key ID
+#   NOTARY_ISSUER_ID           its issuer ID
+# Without them the app is ad-hoc signed: it runs, but Gatekeeper asks users to
+# allow it once in System Settings → Privacy & Security.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  dmg:
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      HAS_SIGNING: ${{ secrets.DEVELOPER_ID_P12_BASE64 != '' }}
+      HAS_NOTARY: ${{ secrets.NOTARY_KEY_P8_BASE64 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            version="${GITHUB_REF_NAME#v}"
+            # CFBundleShortVersionString must be 1–3 dot-separated integers.
+            [[ "$version" =~ ^[0-9]+(\.[0-9]+){1,2}$ ]] || { echo "::error::tag must look like v1.2.3"; exit 1; }
+            echo "APP_VERSION=$version" >> "$GITHUB_ENV"
+          else
+            echo "DMG_LABEL=dev-${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+          fi
+          echo "BUILD_NUMBER=$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
+
+      # Full Xcode on the runner ships the SwiftUIMacros plugin, so the build
+      # script's Command-Line-Tools SDK pin is not needed here.
+      - name: Test
+        run: swift run -c release DockzApp test
+
+      - name: Import Developer ID certificate
+        if: env.HAS_SIGNING == 'true'
+        env:
+          P12_BASE64: ${{ secrets.DEVELOPER_ID_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+        run: |
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          keychain_password="$(uuidgen)"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          echo "$P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$keychain" -P "$P12_PASSWORD" -T /usr/bin/codesign
+          rm -f "$RUNNER_TEMP/cert.p12"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_password" "$keychain" >/dev/null
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          identity="$(security find-identity -v -p codesigning "$keychain" | grep 'Developer ID Application' | head -1 | sed -E 's/.*"(.*)"$/\1/')"
+          [[ -n "$identity" ]] || { echo "::error::no Developer ID Application identity in the .p12"; exit 1; }
+          echo "SIGN_IDENTITY=$identity" >> "$GITHUB_ENV"
+
+      - name: Build app
+        run: |
+          # Ad-hoc unless a Developer ID was imported above.
+          export SIGN_IDENTITY="${SIGN_IDENTITY:--}"
+          scripts/build-and-bundle-app.sh
+          codesign --verify --strict --verbose=2 build/DockZ.app
+
+      - name: Make DMG
+        run: |
+          export SIGN_IDENTITY="${SIGN_IDENTITY:--}"
+          dmg="$(scripts/make-dmg.sh | tail -1)"
+          echo "DMG=$dmg" >> "$GITHUB_ENV"
+
+      - name: Notarize
+        if: env.HAS_SIGNING == 'true' && env.HAS_NOTARY == 'true'
+        env:
+          NOTARY_KEY_P8_BASE64: ${{ secrets.NOTARY_KEY_P8_BASE64 }}
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.NOTARY_ISSUER_ID }}
+        run: |
+          echo "$NOTARY_KEY_P8_BASE64" | base64 --decode > "$RUNNER_TEMP/notary.p8"
+          xcrun notarytool submit "$DMG" --key "$RUNNER_TEMP/notary.p8" \
+            --key-id "$NOTARY_KEY_ID" --issuer "$NOTARY_ISSUER_ID" --wait --timeout 30m
+          rm -f "$RUNNER_TEMP/notary.p8"
+          xcrun stapler staple "$DMG"
+          spctl --assess --type open --context context:primary-signature --verbose=2 "$DMG"
+          echo "NOTARIZED=true" >> "$GITHUB_ENV"
+
+      - name: Checksum
+        run: |
+          (cd build && shasum -a 256 "$(basename "$DMG")") > "$DMG.sha256"
+          cat "$DMG.sha256"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DockZ-dmg
+          path: |
+            ${{ env.DMG }}
+            ${{ env.DMG }}.sha256
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes="$RUNNER_TEMP/notes.md"
+          {
+            echo "### Install"
+            echo "Open \`$(basename "$DMG")\`, drag **DockZ** to Applications, then launch it."
+            echo "Requires macOS 15+ on Apple Silicon. First launch builds the Docker VM image (a few minutes)."
+            if [[ "${NOTARIZED:-}" != "true" ]]; then
+              echo
+              echo "> This build is not notarized. On first launch macOS blocks it: open"
+              echo "> **System Settings → Privacy & Security** and click **Open Anyway** for DockZ."
+            fi
+            echo
+            echo "Signing it yourself or with your own certificate: [deployment guide](https://github.com/$GITHUB_REPOSITORY/blob/$GITHUB_REF_NAME/docs/deployment-guide.md)."
+          } > "$notes"
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "$DMG" "$DMG.sha256" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" "$DMG" "$DMG.sha256" \
+              --title "DockZ $APP_VERSION" --notes-file "$notes" --generate-notes --verify-tag
+          fi
+
+      - name: Remove signing keychain
+        if: always() && env.HAS_SIGNING == 'true'
+        run: security delete-keychain "$RUNNER_TEMP/signing.keychain-db" || true

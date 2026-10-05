@@ -131,14 +131,30 @@ never touched.
 
 ## Install / Build
 
-No full Xcode required — DockZ builds with Swift Package Manager and a bundling
-script.
+**Download:** grab `DockZ-<version>.dmg` from
+[Releases](https://github.com/nextage-soft/dockz/releases), open it and drag
+DockZ to Applications. Each release lists the DMG's SHA-256. Builds that are not
+notarized are blocked on first launch — allow DockZ once in **System Settings →
+Privacy & Security → Open Anyway**. To sign DockZ with your own certificate, or
+to publish signed + notarized releases, see
+[docs/deployment-guide.md](docs/deployment-guide.md).
+
+**Build from source:** no full Xcode required — DockZ builds with Swift Package
+Manager and a bundling script.
 
 ```bash
 # Build + sign the host app  →  build/DockZ.app
 scripts/build-and-bundle-app.sh
 open build/DockZ.app
+
+# Optional: pack it as build/DockZ-<version>.dmg
+scripts/make-dmg.sh
 ```
+
+**Publishing a release:** push a tag such as `v0.2.0`. The *Release* workflow
+tests, builds, packs the DMG (signed + notarized when the secrets listed at the
+top of `.github/workflows/release.yml` exist) and attaches it to a GitHub
+Release. Running the workflow manually builds a DMG artifact without releasing.
 
 Copy `build/DockZ.app` into `/Applications` to install. On first launch DockZ
 offers to build the guest disk image itself (a throwaway Alpine netboot VM
@@ -318,8 +334,10 @@ CI runs the same on a `macos-15` runner (`.github/workflows/ci.yml`).
   entitlement or the VM won't start — `scripts/build-and-bundle-app.sh` handles
   this (Apple Development certificate, or ad-hoc as a fallback).
 - Rebuilding the guest image wipes Docker data (`--force` guard).
-- Not yet notarized — Gatekeeper may require right-click → Open on first launch,
-  or `xattr -dr com.apple.quarantine /Applications/DockZ.app`.
+- Release DMGs are notarized only when the repository has Developer ID and
+  notary secrets ([docs/deployment-guide.md](docs/deployment-guide.md));
+  otherwise allow DockZ once in System Settings → Privacy & Security, or run
+  `xattr -dr com.apple.quarantine /Applications/DockZ.app`.
 
 ## FAQ
 

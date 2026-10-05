@@ -8,8 +8,7 @@ enum AppInfo {
     static let tagline = "Docker & Linux VMs on Apple Silicon, natively."
     static let summary = """
     A Docker Desktop / Colima / Multipass alternative for macOS on Apple Silicon, \
-    built entirely on Apple's Virtualization.framework — no external runtimes, no \
-    Swift dependencies. Runs a lightweight Alpine VM for the Docker engine and can \
+    built entirely on Apple's Virtualization.framework — no external runtimes. Runs a lightweight Alpine VM for the Docker engine and can \
     spin up full Linux machines (Alpine / Debian / Ubuntu) with optional k3s/k8s clusters.
     """
 
