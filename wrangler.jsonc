@@ -6,7 +6,10 @@
     "enabled": true
   },
   "assets": {
-    "directory": "landing"
+    "directory": "landing",
+    // Unknown paths answer 404 with landing/404.html instead of the home
+    // page with 200 (search engines treat that as duplicate "soft 404"s).
+    "not_found_handling": "404-page"
   },
   "compatibility_flags": [
     "nodejs_compat"

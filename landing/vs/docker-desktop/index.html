@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DockZ vs Docker Desktop — free Docker Desktop alternative for Mac</title>
+  <meta name="description" content="Compare DockZ and Docker Desktop on Apple Silicon: license, app size, native UI, Linux VMs, Kubernetes and snapshots. DockZ is free and open source for companies of any size." />
+  <link rel="canonical" href="https://dockz.nextagesoft.com/vs/docker-desktop/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="DockZ" />
+  <meta property="og:title" content="DockZ vs Docker Desktop — free Docker Desktop alternative for Mac" />
+  <meta property="og:description" content="Compare DockZ and Docker Desktop on Apple Silicon: license, app size, native UI, Linux VMs, Kubernetes and snapshots. DockZ is free and open source for companies of any size." />
+  <meta property="og:url" content="https://dockz.nextagesoft.com/vs/docker-desktop/" />
+  <meta property="og:image" content="https://dockz.nextagesoft.com/assets/social-preview.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content="https://dockz.nextagesoft.com/assets/social-preview.png" />
+  <link rel="icon" type="image/png" href="../../assets/logo.png" />
+  <link rel="stylesheet" href="../../assets/page.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet" />
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "DockZ", "item": "https://dockz.nextagesoft.com/"}, {"@type": "ListItem", "position": 2, "name": "DockZ vs Docker Desktop", "item": "https://dockz.nextagesoft.com/vs/docker-desktop/"}]}</script>
+</head>
+<body>
+  <nav><div class="container nav-inner">
+    <a href="../../" class="brand"><img src="../../assets/logo.png" alt="DockZ" /><span>DockZ</span></a>
+    <div class="nav-links">
+      <a href="../../vs/docker-desktop/">vs Docker Desktop</a>
+      <a href="../../vs/orbstack/">vs OrbStack</a>
+      <a href="../../vs/colima/">vs Colima</a>
+      <a href="https://github.com/nextage-soft/dockz">GitHub</a>
+    </div>
+  </div></nav>
+  <main><div class="container">
+    <div class="eyebrow">Comparison</div>
+    <h1>DockZ vs <span class="gradient">Docker Desktop</span></h1>
+    <p class="lead">Docker Desktop is the official way to run Docker on a Mac. DockZ runs the same upstream <code>dockerd</code>, but as a ~8 MB native SwiftUI app that is free for every company size.</p>
+    <h2>At a glance</h2>
+<div class="table-wrap"><table>
+<tr><th></th><th>DockZ</th><th>Docker Desktop</th></tr>
+<tr><td>License</td><td class="us">Apache 2.0, free for everyone</td><td>Paid subscription for larger companies (250+ employees or $10M+ revenue)</td></tr>
+<tr><td>App on disk</td><td class="us">~8 MB</td><td>~1.5 GB+</td></tr>
+<tr><td>UI</td><td class="us">Native SwiftUI</td><td>Electron</td></tr>
+<tr><td>Docker engine</td><td class="us">Upstream <code>dockerd</code> in Alpine</td><td>Upstream <code>dockerd</code></td></tr>
+<tr><td>General Linux VMs</td><td class="us">Alpine / Debian / Ubuntu, cloud-init</td><td>—</td></tr>
+<tr><td>Kubernetes</td><td class="us">Multi-node k3s / k8s templates</td><td>Single-node</td></tr>
+<tr><td>VM snapshots + rollback</td><td class="us">APFS copy-on-write</td><td>—</td></tr>
+<tr><td>Remote Docker engines</td><td class="us">SSH / mutual TLS, keys in the Secure Enclave</td><td>Via docker contexts (CLI)</td></tr>
+<tr><td>Platforms</td><td class="us">macOS 15+, Apple Silicon only</td><td>macOS, Windows, Linux</td></tr>
+</table></div>
+    <h2>Why people pick DockZ</h2>
+    <ul>
+      <li>Free and open source (Apache 2.0) — no seat counting, no license audit.</li>
+      <li>One ~8 MB native app: Docker engine, a Portainer-style dashboard, Multipass-style Linux machines and k3s/k8s playgrounds.</li>
+      <li>Manage remote Docker hosts over SSH or mutual TLS; TLS keys stay in the Mac's Secure Enclave.</li>
+      <li>Self-healing VM: if the engine stops answering, DockZ restarts it on its own.</li>
+    </ul>
+    <h2>When Docker Desktop is the better choice</h2>
+    <ul>
+      <li>You need Windows or Linux desktops, Intel Macs, or one tool across a mixed team.</li><li>You rely on Docker Extensions, Docker's commercial support, or other features of a Docker subscription.</li>
+    </ul>
+    <h2>Switching takes a few minutes</h2>
+    <ul>
+      <li>Install DockZ from the DMG and launch it; the first launch builds the VM image and, if you have no <code>docker</code> CLI, installs the official one.</li>
+      <li>DockZ registers a <code>dockz</code> Docker context: <code>docker context use dockz</code>. Your images, compose files and commands stay the same.</li>
+      <li>Images live per engine — re-pull them (or <code>docker save</code> / <code>docker load</code>) and recreate volumes you need.</li>
+    </ul>
+    <div class="cta">
+      <div><strong>Try DockZ</strong><p>Free, open source, ~8 MB (3.5 MB download). macOS 15+ on Apple Silicon.</p></div>
+      <a class="btn btn-primary" href="https://github.com/nextage-soft/dockz/releases/latest">Download the DMG</a>
+    </div>
+    <p class="note">Comparison as of October 2026, based on each product's public documentation. Spotted something out of date? <a href="https://github.com/nextage-soft/dockz/issues">Open an issue</a>.</p>
+  </div></main>
+  <footer><div class="container">&copy; 2026 DockZ &middot; Apache License 2.0 &middot; <a href="../../">dockz.nextagesoft.com</a> &middot; <a href="https://github.com/nextage-soft/dockz">GitHub</a></div></footer>
+</body>
+</html>
