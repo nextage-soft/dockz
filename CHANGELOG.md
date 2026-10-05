@@ -6,9 +6,9 @@ are taken from its section here.
 
 ## [Unreleased]
 
-## [0.2.0] - 2026-10-05
+## [0.2.1] - 2026-10-05
 
-The first downloadable release: grab `DockZ-0.2.0.dmg` from the release assets.
+The first downloadable release: grab `DockZ-0.2.1.dmg` from the release assets.
 
 ### Added
 - **Multiple environments** — manage other Docker engines from the same window: remote hosts
@@ -43,6 +43,14 @@ The first downloadable release: grab `DockZ-0.2.0.dmg` from the release assets.
 ### Fixed
 - Crash in the Monitor disk breakdown when Docker reports `-1` for an unknown size.
 - Snapshot name field squeezed by its form label.
+- Release build on machines without an Apple Development certificate (CI runners): the
+  signing-identity lookup ended the build script silently. Build scripts now report the
+  failing line instead of exiting without a message.
+
+## [0.2.0] - 2026-10-05
+
+Tagged but not published: its release build failed (see 0.2.1). Everything it contained
+ships in 0.2.1.
 
 ## [0.1.0] - 2026-07-16
 
@@ -50,6 +58,7 @@ Initial version, build from source only: the real `dockerd` in an Alpine VM on
 Virtualization.framework, Docker Desktop–style dashboard, Multipass-style Linux machines with
 k3s/k8s templates, automatic port forwarding, VM snapshots, Rosetta, Docker CLI on demand.
 
-[Unreleased]: https://github.com/nextage-soft/dockz/compare/v0.2.0...HEAD
-[0.2.0]: https://github.com/nextage-soft/dockz/releases/tag/v0.2.0
+[Unreleased]: https://github.com/nextage-soft/dockz/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/nextage-soft/dockz/releases/tag/v0.2.1
+[0.2.0]: https://github.com/nextage-soft/dockz/tree/v0.2.0
 [0.1.0]: https://github.com/nextage-soft/dockz/commit/3bed5ae
