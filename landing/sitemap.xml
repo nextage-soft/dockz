@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://dockz.nextagesoft.com/</loc><lastmod>2026-10-05</lastmod></url>
-  <url><loc>https://dockz.nextagesoft.com/vs/docker-desktop/</loc><lastmod>2026-10-05</lastmod></url>
-  <url><loc>https://dockz.nextagesoft.com/vs/orbstack/</loc><lastmod>2026-10-05</lastmod></url>
-  <url><loc>https://dockz.nextagesoft.com/vs/colima/</loc><lastmod>2026-10-05</lastmod></url>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url><loc>https://dockz.nextagesoft.com/</loc><lastmod>2026-10-06</lastmod><xhtml:link rel="alternate" hreflang="en" href="https://dockz.nextagesoft.com/"/><xhtml:link rel="alternate" hreflang="vi" href="https://dockz.nextagesoft.com/vi/"/></url>
+  <url><loc>https://dockz.nextagesoft.com/vi/</loc><lastmod>2026-10-06</lastmod><xhtml:link rel="alternate" hreflang="en" href="https://dockz.nextagesoft.com/"/><xhtml:link rel="alternate" hreflang="vi" href="https://dockz.nextagesoft.com/vi/"/></url>
+  <url><loc>https://dockz.nextagesoft.com/vs/docker-desktop/</loc><lastmod>2026-10-06</lastmod><xhtml:link rel="alternate" hreflang="en" href="https://dockz.nextagesoft.com/vs/docker-desktop/"/><xhtml:link rel="alternate" hreflang="vi" href="https://dockz.nextagesoft.com/vi/vs/docker-desktop/"/></url>
+  <url><loc>https://dockz.nextagesoft.com/vi/vs/docker-desktop/</loc><lastmod>2026-10-06</lastmod><xhtml:link rel="alternate" hreflang="en" href="https://dockz.nextagesoft.com/vs/docker-desktop/"/><xhtml:link rel="alternate" hreflang="vi" href="https://dockz.nextagesoft.com/vi/vs/docker-desktop/"/></url>
+  <url><loc>https://dockz.nextagesoft.com/vs/orbstack/</loc><lastmod>2026-10-06</lastmod><xhtml:link rel="alternate" hreflang="en" href="https://dockz.nextagesoft.com/vs/orbstack/"/><xhtml:link rel="alternate" hreflang="vi" href="https://dockz.nextagesoft.com/vi/vs/orbstack/"/></url>
+  <url><loc>https://dockz.nextagesoft.com/vi/vs/orbstack/</loc><lastmod>2026-10-06</lastmod><xhtml:link rel="alternate" hreflang="en" href="https://dockz.nextagesoft.com/vs/orbstack/"/><xhtml:link rel="alternate" hreflang="vi" href="https://dockz.nextagesoft.com/vi/vs/orbstack/"/></url>
+  <url><loc>https://dockz.nextagesoft.com/vs/colima/</loc><lastmod>2026-10-06</lastmod><xhtml:link rel="alternate" hreflang="en" href="https://dockz.nextagesoft.com/vs/colima/"/><xhtml:link rel="alternate" hreflang="vi" href="https://dockz.nextagesoft.com/vi/vs/colima/"/></url>
+  <url><loc>https://dockz.nextagesoft.com/vi/vs/colima/</loc><lastmod>2026-10-06</lastmod><xhtml:link rel="alternate" hreflang="en" href="https://dockz.nextagesoft.com/vs/colima/"/><xhtml:link rel="alternate" hreflang="vi" href="https://dockz.nextagesoft.com/vi/vs/colima/"/></url>
 </urlset>

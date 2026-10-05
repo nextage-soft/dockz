@@ -10,6 +10,15 @@ are taken from its section here.
 - Homebrew cask in this repository: `brew tap nextage-soft/dockz https://github.com/nextage-soft/dockz`
   then `brew install --cask nextage-soft/dockz/dockz`. Releases now also attach a stable-named
   `DockZ.dmg` that the cask installs.
+- Vietnamese README (`README.vi.md`) and website (`/vi/`, with `hreflang` links and a
+  language switch).
+- 34-second intro video on the website (muted, in English and Vietnamese).
+
+### Changed
+- New screenshots (v0.2.1, demo data only) in the README and on the website, including
+  Monitor and the TLS / Secure Enclave environment editor.
+- Architecture diagram no longer claims zero external Swift dependencies (TLS uses Apple's
+  swift-nio-ssl) and shows Monitor, the VM watchdog and remote engines.
 
 ## [0.2.1] - 2026-10-05
 

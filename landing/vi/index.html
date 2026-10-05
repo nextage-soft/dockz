@@ -1,31 +1,32 @@
 <!doctype html>
-<html lang="en">
+<html lang="vi">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>DockZ — Docker & Linux VMs on Apple Silicon, natively</title>
-  <meta name="description" content="DockZ is a ~8 MB macOS menu bar app that runs the real dockerd in a tiny Alpine VM on Apple Silicon. Docker Desktop + Multipass in one, Apache 2.0, no Electron." />
-  <link rel="canonical" href="https://dockz.nextagesoft.com/" />
+  <title>DockZ — Docker & máy ảo Linux chạy native trên Apple Silicon</title>
+  <meta name="description" content="DockZ là app menu bar macOS chỉ ~8 MB, chạy dockerd thật trong một VM Alpine siêu nhẹ trên Apple Silicon. Docker Desktop + Multipass gộp làm một, giấy phép Apache 2.0, không dùng Electron." />
+  <link rel="canonical" href="https://dockz.nextagesoft.com/vi/" />
   <link rel="alternate" hreflang="en" href="https://dockz.nextagesoft.com/" />
   <link rel="alternate" hreflang="vi" href="https://dockz.nextagesoft.com/vi/" />
   <link rel="alternate" hreflang="x-default" href="https://dockz.nextagesoft.com/" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="DockZ" />
-  <meta property="og:title" content="DockZ — Docker &amp; Linux VMs on Apple Silicon, natively" />
-  <meta property="og:description" content="DockZ is a ~8 MB macOS menu bar app that runs the real dockerd in a tiny Alpine VM on Apple Silicon. Docker Desktop + Multipass in one, Apache 2.0, no Electron." />
-  <meta property="og:url" content="https://dockz.nextagesoft.com/" />
+  <meta property="og:locale" content="vi_VN" />
+  <meta property="og:title" content="DockZ — Docker &amp; máy ảo Linux chạy native trên Apple Silicon" />
+  <meta property="og:description" content="DockZ là app menu bar macOS chỉ ~8 MB, chạy dockerd thật trong một VM Alpine siêu nhẹ trên Apple Silicon. Docker Desktop + Multipass gộp làm một, giấy phép Apache 2.0, không dùng Electron." />
+  <meta property="og:url" content="https://dockz.nextagesoft.com/vi/" />
   <meta property="og:image" content="https://dockz.nextagesoft.com/assets/social-preview.png" />
   <meta property="og:image:width" content="1280" />
   <meta property="og:image:height" content="640" />
-  <meta property="og:image:alt" content="DockZ — Docker &amp; Linux VMs on Apple Silicon, natively" />
+  <meta property="og:image:alt" content="DockZ — Docker &amp; máy ảo Linux chạy native trên Apple Silicon" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="DockZ — Docker &amp; Linux VMs on Apple Silicon, natively" />
-  <meta name="twitter:description" content="DockZ is a ~8 MB macOS menu bar app that runs the real dockerd in a tiny Alpine VM on Apple Silicon. Docker Desktop + Multipass in one, Apache 2.0, no Electron." />
+  <meta name="twitter:title" content="DockZ — Docker &amp; máy ảo Linux chạy native trên Apple Silicon" />
+  <meta name="twitter:description" content="DockZ là app menu bar macOS chỉ ~8 MB, chạy dockerd thật trong một VM Alpine siêu nhẹ trên Apple Silicon. Docker Desktop + Multipass gộp làm một, giấy phép Apache 2.0, không dùng Electron." />
   <meta name="twitter:image" content="https://dockz.nextagesoft.com/assets/social-preview.png" />
-  <meta name="keywords" content="Docker Desktop alternative, Docker on Mac, Apple Silicon, OrbStack alternative, Colima GUI, Portainer for Mac, Kubernetes on Mac, k3s, macOS virtualization" />
-  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "DockZ", "description": "DockZ is a ~8 MB macOS menu bar app that runs the real dockerd in a tiny Alpine VM on Apple Silicon. Docker Desktop + Multipass in one, Apache 2.0, no Electron.", "url": "https://dockz.nextagesoft.com/", "image": "https://dockz.nextagesoft.com/assets/social-preview.png", "applicationCategory": "DeveloperApplication", "operatingSystem": "macOS 15 or later (Apple Silicon)", "softwareVersion": "0.2.1", "fileSize": "3.5MB", "license": "https://www.apache.org/licenses/LICENSE-2.0", "downloadUrl": "https://github.com/nextage-soft/dockz/releases/latest", "codeRepository": "https://github.com/nextage-soft/dockz", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}, "author": {"@type": "Organization", "name": "NextAge Soft", "url": "https://nextagesoft.com"}}</script>
-  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Is DockZ a free Docker Desktop alternative for Mac?", "acceptedAnswer": {"@type": "Answer", "text": "Yes — free and Apache-2.0 licensed, with no per-seat licensing for companies. It runs the real Docker Engine (dockerd) in a lightweight Alpine Linux VM on Apple's Virtualization.framework."}}, {"@type": "Question", "name": "How is DockZ different from OrbStack or Colima?", "acceptedAnswer": {"@type": "Answer", "text": "OrbStack is excellent but closed-source and paid for commercial use; Colima is free but CLI-only and installed via Homebrew. DockZ is a ~8 MB fully open-source native app with a GUI dashboard, needs no Homebrew and no admin password, and also manages general-purpose Linux VMs."}}, {"@type": "Question", "name": "Can I run Kubernetes (k3s/k8s) on it?", "acceptedAnswer": {"@type": "Answer", "text": "Yes — the Machines tab creates Alpine/Debian/Ubuntu VMs with one-click k3s or kubeadm master/node templates; nodes share one NAT network, so multi-node clusters work on a single Mac."}}, {"@type": "Question", "name": "Does docker compose / buildx / amd64 work?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. The engine is upstream Docker, so compose, buildx, and private registries behave exactly as on Linux. linux/amd64 images run through Rosetta."}}, {"@type": "Question", "name": "Can DockZ manage remote Docker hosts?", "acceptedAnswer": {"@type": "Answer", "text": "Yes — add other engines over SSH or mutual TLS (or another engine's socket on the Mac) and switch every tab between them. TLS client keys are created in the Mac's Secure Enclave and used with Touch ID."}}, {"@type": "Question", "name": "Do I need Docker or Homebrew installed first?", "acceptedAnswer": {"@type": "Answer", "text": "No. First launch builds the guest image itself and downloads the official docker CLI + compose plugin, checksum-verified — a fresh Mac goes from zero to docker ps in one window."}}]}</script>
-  <link rel="icon" type="image/png" href="assets/logo.png" />
+  <meta name="keywords" content="thay thế Docker Desktop, Docker trên Mac, Apple Silicon, thay thế OrbStack, Colima GUI, Portainer cho Mac, Kubernetes trên Mac, k3s, ảo hóa macOS, Docker Desktop alternative, Docker on Mac" />
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "DockZ", "description": "DockZ là app menu bar macOS chỉ ~8 MB, chạy dockerd thật trong một VM Alpine siêu nhẹ trên Apple Silicon. Docker Desktop + Multipass gộp làm một, giấy phép Apache 2.0, không dùng Electron.", "url": "https://dockz.nextagesoft.com/vi/", "image": "https://dockz.nextagesoft.com/assets/social-preview.png", "applicationCategory": "DeveloperApplication", "operatingSystem": "macOS 15 or later (Apple Silicon)", "softwareVersion": "0.2.1", "fileSize": "3.5MB", "license": "https://www.apache.org/licenses/LICENSE-2.0", "downloadUrl": "https://github.com/nextage-soft/dockz/releases/latest", "codeRepository": "https://github.com/nextage-soft/dockz", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}, "author": {"@type": "Organization", "name": "NextAge Soft", "url": "https://nextagesoft.com"}}</script>
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "DockZ có phải là lựa chọn miễn phí thay Docker Desktop trên Mac không?", "acceptedAnswer": {"@type": "Answer", "text": "Đúng vậy — miễn phí, giấy phép Apache 2.0, công ty dùng cũng không phải mua license theo đầu người. DockZ chạy Docker Engine thật (dockerd) trong một VM Alpine Linux gọn nhẹ trên Virtualization.framework của Apple."}}, {"@type": "Question", "name": "DockZ khác gì OrbStack hay Colima?", "acceptedAnswer": {"@type": "Answer", "text": "OrbStack rất tốt nhưng là mã nguồn đóng và phải trả phí khi dùng cho mục đích thương mại; Colima miễn phí nhưng chỉ có CLI và cài qua Homebrew. DockZ là app native mã nguồn mở hoàn toàn, chỉ ~8 MB, có dashboard GUI, không cần Homebrew, không cần mật khẩu admin, và còn quản lý được cả máy ảo Linux đa dụng."}}, {"@type": "Question", "name": "Chạy Kubernetes (k3s/k8s) trên DockZ được không?", "acceptedAnswer": {"@type": "Answer", "text": "Được — tab Machines tạo VM Alpine/Debian/Ubuntu kèm template master/node k3s hoặc kubeadm chỉ với một cú click; các node dùng chung một mạng NAT nên bạn dựng được cluster nhiều node ngay trên một chiếc Mac."}}, {"@type": "Question", "name": "docker compose / buildx / amd64 có chạy được không?", "acceptedAnswer": {"@type": "Answer", "text": "Có. Engine là Docker upstream nên compose, buildx và registry riêng chạy y hệt như trên Linux. Image linux/amd64 chạy qua Rosetta."}}, {"@type": "Question", "name": "DockZ có quản lý được Docker host từ xa không?", "acceptedAnswer": {"@type": "Answer", "text": "Có — bạn thêm các engine khác qua SSH hoặc mutual TLS (hoặc socket của một engine khác ngay trên Mac) rồi chuyển qua lại giữa chúng trên mọi tab. Client key TLS được tạo trong Secure Enclave của Mac và dùng kèm Touch ID."}}, {"@type": "Question", "name": "Có cần cài Docker hay Homebrew trước không?", "acceptedAnswer": {"@type": "Answer", "text": "Không. Lần chạy đầu tiên, DockZ tự build guest image và tải docker CLI chính thức + plugin compose, có kiểm checksum — một chiếc Mac mới tinh đi từ con số 0 tới docker ps chỉ trong một cửa sổ."}}]}</script>
+  <link rel="icon" type="image/png" href="../assets/logo.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -486,21 +487,21 @@
 <body>
   <nav>
     <div class="container nav-inner">
-      <a href="#" class="brand">
-        <img src="assets/logo.png" alt="DockZ" />
+      <a href="./" class="brand">
+        <img src="../assets/logo.png" alt="DockZ" />
         <span>DockZ</span>
       </a>
       <div class="nav-links">
-        <a href="#features">Features</a>
-        <a href="#screenshots">Screenshots</a>
-        <a href="#install">Install</a>
-        <a href="vs/docker-desktop/">Compare</a>
-        <a href="vi/" hreflang="vi" lang="vi">Tiếng Việt</a>
+        <a href="#features">Tính năng</a>
+        <a href="#screenshots">Ảnh chụp</a>
+        <a href="#install">Cài đặt</a>
+        <a href="vs/docker-desktop/">So sánh</a>
+        <a href="../" hreflang="en" lang="en">English</a>
         <a href="https://github.com/nextage-soft/dockz" target="_blank" rel="noopener" class="btn btn-ghost">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.4 3-.405 1.02.005 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
           GitHub
         </a>
-        <a href="#install" class="btn btn-primary">Download</a>
+        <a href="#install" class="btn btn-primary">Tải về</a>
       </div>
     </div>
   </nav>
@@ -512,48 +513,48 @@
         Apache 2.0 · macOS 15+ · Apple Silicon
       </div>
       <h1>
-        Docker &amp; Linux VMs<br />
-        on <span class="gradient">Apple Silicon</span>, natively.
+        Docker &amp; máy ảo Linux<br />
+        trên <span class="gradient">Apple Silicon</span>, chạy native.
       </h1>
       <p class="hero-sub">
-        DockZ is a ~8 MB menu bar app that runs the real <code class="mono">dockerd</code> in a tiny Alpine VM — with a Docker Desktop&ndash;style dashboard and Multipass&ndash;style Linux machines. One app replaces the whole stack.
+        DockZ là app menu bar chỉ ~8 MB, chạy <code class="mono">dockerd</code> thật trong một VM Alpine siêu nhẹ — kèm dashboard kiểu Docker Desktop và máy ảo Linux kiểu Multipass. Một app thay cho cả bộ công cụ.
       </p>
       <div class="hero-cta">
         <a href="https://github.com/nextage-soft/dockz/releases/latest" target="_blank" rel="noopener" class="btn btn-primary">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-          Download DockZ.dmg
+          Tải DockZ.dmg
         </a>
         <a href="https://github.com/nextage-soft/dockz" target="_blank" rel="noopener" class="btn btn-ghost">
-          View source &rarr;
+          Xem mã nguồn &rarr;
         </a>
       </div>
 
       <div class="stats">
         <div class="stat">
           <div class="stat-value">~8 MB</div>
-          <div class="stat-label">App size</div>
+          <div class="stat-label">Dung lượng app</div>
         </div>
         <div class="stat">
           <div class="stat-value">3.5 MB</div>
-          <div class="stat-label">Download</div>
+          <div class="stat-label">Bản tải về</div>
         </div>
         <div class="stat">
           <div class="stat-value">100%</div>
-          <div class="stat-label">Real dockerd</div>
+          <div class="stat-label">dockerd thật</div>
         </div>
         <div class="stat">
-          <div class="stat-value">Free</div>
+          <div class="stat-value">Miễn phí</div>
           <div class="stat-label">Apache 2.0</div>
         </div>
       </div>
     </div>
   </header>
 
-  <section id="video" aria-label="Intro video">
+  <section id="video" aria-label="Video giới thiệu">
     <div class="container">
       <div class="video-frame">
-        <video autoplay muted loop playsinline preload="metadata" poster="assets/dockz-intro-poster.jpg">
-          <source src="assets/dockz-intro-en.mp4" type="video/mp4" />
+        <video autoplay muted loop playsinline preload="metadata" poster="../assets/dockz-intro-poster.jpg">
+          <source src="../assets/dockz-intro-vi.mp4" type="video/mp4" />
         </video>
       </div>
     </div>
@@ -562,34 +563,34 @@
   <section id="screenshots">
     <div class="container">
       <div class="section-head">
-        <div class="section-eyebrow">Screenshots</div>
-        <h2>A native dashboard, not Electron</h2>
-        <p class="section-sub">Pure SwiftUI on Apple's Virtualization.framework. Manage containers, images, volumes, networks, registries, compose stacks, and Linux machines — all in one window.</p>
+        <div class="section-eyebrow">Ảnh chụp màn hình</div>
+        <h2>Dashboard native, không phải Electron</h2>
+        <p class="section-sub">Viết hoàn toàn bằng SwiftUI trên Virtualization.framework của Apple. Quản lý container, image, volume, network, registry, compose stack và máy ảo Linux — tất cả trong một cửa sổ.</p>
       </div>
       <div class="shots">
         <div class="shot">
-          <div class="shot-frame"><img src="assets/dashboard-containers.png" alt="Containers grouped by compose stack" loading="lazy" /></div>
-          <div class="shot-caption"><strong>Containers</strong> &middot; grouped by stack, crashes and failing health checks flagged</div>
+          <div class="shot-frame"><img src="../assets/dashboard-containers.png" alt="Container được nhóm theo compose stack" loading="lazy" /></div>
+          <div class="shot-caption"><strong>Containers</strong> &middot; nhóm theo stack, đánh dấu container bị crash và health check lỗi</div>
         </div>
         <div class="shot">
-          <div class="shot-frame"><img src="assets/dashboard-monitor.png" alt="Monitor tab" loading="lazy" /></div>
-          <div class="shot-caption"><strong>Monitor</strong> &middot; live CPU / memory / network per container, disk breakdown</div>
+          <div class="shot-frame"><img src="../assets/dashboard-monitor.png" alt="Tab Monitor" loading="lazy" /></div>
+          <div class="shot-caption"><strong>Monitor</strong> &middot; CPU / bộ nhớ / mạng của từng container theo thời gian thực, phân tích dung lượng đĩa</div>
         </div>
         <div class="shot">
-          <div class="shot-frame"><img src="assets/dashboard-environments.png" alt="TLS environment editor" loading="lazy" /></div>
-          <div class="shot-caption"><strong>Remote engines</strong> &middot; SSH or TLS, client key kept in the Secure Enclave</div>
+          <div class="shot-frame"><img src="../assets/dashboard-environments.png" alt="Màn hình chỉnh sửa môi trường TLS" loading="lazy" /></div>
+          <div class="shot-caption"><strong>Engine từ xa</strong> &middot; SSH hoặc TLS, client key được giữ trong Secure Enclave</div>
         </div>
         <div class="shot">
-          <div class="shot-frame"><img src="assets/dashboard-machines.png" alt="Machines" loading="lazy" /></div>
-          <div class="shot-caption"><strong>Machines</strong> &middot; Alpine / Debian / Ubuntu, one-click k3s / k8s clusters</div>
+          <div class="shot-frame"><img src="../assets/dashboard-machines.png" alt="Machines" loading="lazy" /></div>
+          <div class="shot-caption"><strong>Machines</strong> &middot; Alpine / Debian / Ubuntu, dựng cluster k3s / k8s chỉ với một click</div>
         </div>
         <div class="shot">
-          <div class="shot-frame"><img src="assets/dashboard-images.png" alt="Images" loading="lazy" /></div>
-          <div class="shot-caption"><strong>Images</strong> &middot; in use / unused / dangling, pull and prune</div>
+          <div class="shot-frame"><img src="../assets/dashboard-images.png" alt="Images" loading="lazy" /></div>
+          <div class="shot-caption"><strong>Images</strong> &middot; đang dùng / không dùng / dangling, pull và prune</div>
         </div>
         <div class="shot">
-          <div class="shot-frame"><img src="assets/dashboard-settings.png" alt="Settings" loading="lazy" /></div>
-          <div class="shot-caption"><strong>Settings</strong> &middot; CPU / RAM / disk, snapshots, move data to external SSD</div>
+          <div class="shot-frame"><img src="../assets/dashboard-settings.png" alt="Cài đặt" loading="lazy" /></div>
+          <div class="shot-caption"><strong>Settings</strong> &middot; CPU / RAM / ổ đĩa, snapshot, chuyển dữ liệu sang SSD rời</div>
         </div>
       </div>
     </div>
@@ -598,12 +599,12 @@
   <section id="architecture">
     <div class="container">
       <div class="section-head">
-        <div class="section-eyebrow">Architecture</div>
-        <h2>One Alpine VM, one <code class="mono">vsock</code>, nothing more</h2>
-        <p class="section-sub">The Docker socket is bridged over vsock. Published ports are mirrored to <code class="mono">localhost</code> automatically. <code class="mono">$HOME</code> is shared via virtiofs for instant bind mounts.</p>
+        <div class="section-eyebrow">Kiến trúc</div>
+        <h2>Một VM Alpine, một <code class="mono">vsock</code>, vậy thôi</h2>
+        <p class="section-sub">Docker socket được nối qua vsock. Các port publish ra được tự động ánh xạ về <code class="mono">localhost</code>. <code class="mono">$HOME</code> được chia sẻ qua virtiofs nên bind mount dùng được ngay.</p>
       </div>
       <div class="arch-wrap">
-        <img src="assets/architecture.svg" alt="DockZ architecture diagram" />
+        <img src="../assets/architecture.svg" alt="Sơ đồ kiến trúc DockZ" />
       </div>
     </div>
   </section>
@@ -611,69 +612,69 @@
   <section id="features">
     <div class="container">
       <div class="section-head">
-        <div class="section-eyebrow">Features</div>
-        <h2>Everything you need, nothing you don't</h2>
+        <div class="section-eyebrow">Tính năng</div>
+        <h2>Đủ mọi thứ bạn cần, không thừa thứ gì</h2>
       </div>
       <div class="features">
         <div class="feature">
           <div class="feature-icon">🐳</div>
-          <h3>Real Docker engine</h3>
-          <p>Upstream <code class="mono">dockerd</code> in Alpine. <code class="mono">docker</code>, <code class="mono">docker compose</code>, and buildx all work — via the <code class="mono">dockz</code> context.</p>
+          <h3>Docker engine thật</h3>
+          <p><code class="mono">dockerd</code> upstream chạy trong Alpine. <code class="mono">docker</code>, <code class="mono">docker compose</code> và buildx đều chạy được — thông qua context <code class="mono">dockz</code>.</p>
         </div>
         <div class="feature">
           <div class="feature-icon">🖥️</div>
-          <h3>Native dashboard</h3>
-          <p>Containers, images, volumes, networks, registries, compose stacks. Create / edit forms, live logs, inspect, and filters + search on every list (containers grouped by stack, crashes flagged) — like Docker Desktop, but it's SwiftUI.</p>
+          <h3>Dashboard native</h3>
+          <p>Container, image, volume, network, registry, compose stack. Form tạo / sửa, log trực tiếp, inspect, cùng bộ lọc + tìm kiếm trên mọi danh sách (container nhóm theo stack, container crash được đánh dấu) — giống Docker Desktop, nhưng viết bằng SwiftUI.</p>
         </div>
         <div class="feature">
           <div class="feature-icon">📦</div>
-          <h3>Linux machines</h3>
-          <p>Alpine / Debian / Ubuntu VMs (ARM64) over SSH. One-click k3s / k8s master + node cluster templates. Multipass-style, sharing one NAT network.</p>
+          <h3>Máy ảo Linux</h3>
+          <p>VM Alpine / Debian / Ubuntu (ARM64), truy cập qua SSH. Template cluster k3s / k8s master + node chỉ với một click. Kiểu Multipass, dùng chung một mạng NAT.</p>
         </div>
         <div class="feature">
           <div class="feature-icon">🚀</div>
-          <h3>One-window onboarding</h3>
-          <p>First launch builds the guest image in a throwaway netboot VM and fetches the CLI in parallel. When the window closes, <code class="mono">docker ps</code> just works.</p>
+          <h3>Thiết lập trong một cửa sổ</h3>
+          <p>Lần chạy đầu tiên, DockZ build guest image trong một VM netboot dùng xong bỏ, đồng thời tải CLI song song. Đóng cửa sổ lại là <code class="mono">docker ps</code> chạy được ngay.</p>
         </div>
         <div class="feature">
           <div class="feature-icon">🔌</div>
-          <h3>Auto port forwarding</h3>
-          <p>Published TCP and UDP ports are mirrored to <code class="mono">localhost</code> automatically via the Docker events API. Zero config.</p>
+          <h3>Tự động forward port</h3>
+          <p>Các port TCP và UDP được publish sẽ tự động ánh xạ về <code class="mono">localhost</code> thông qua Docker events API. Không cần cấu hình gì.</p>
         </div>
         <div class="feature">
           <div class="feature-icon">📸</div>
-          <h3>VM snapshots</h3>
-          <p>Instant APFS copy-on-write snapshots of the VM disk, with rollback. Rosetta for running <code class="mono">linux/amd64</code> images on ARM.</p>
+          <h3>Snapshot VM</h3>
+          <p>Snapshot copy-on-write APFS tức thì cho ổ đĩa VM, có rollback. Dùng Rosetta để chạy image <code class="mono">linux/amd64</code> trên ARM.</p>
         </div>
         <div class="feature">
           <div class="feature-icon">⚙️</div>
-          <h3>Configurable</h3>
-          <p>CPUs, RAM, disk limit, virtiofs <code class="mono">$HOME</code> share, relocatable data folder (move everything to an external SSD).</p>
+          <h3>Tùy chỉnh được</h3>
+          <p>Số CPU, RAM, giới hạn ổ đĩa, chia sẻ <code class="mono">$HOME</code> qua virtiofs, thư mục dữ liệu đổi được vị trí (chuyển toàn bộ sang SSD rời).</p>
         </div>
         <div class="feature">
           <div class="feature-icon">🧰</div>
-          <h3>Docker CLI on demand</h3>
-          <p>No Homebrew required. Fetches the official static <code class="mono">docker</code> + compose binaries, checksum-verified, wired into your terminal via a removable <code class="mono">~/.zshrc</code> block.</p>
+          <h3>Docker CLI khi cần</h3>
+          <p>Không cần Homebrew. DockZ tải binary tĩnh chính thức của <code class="mono">docker</code> + compose, có kiểm checksum, rồi nối vào terminal của bạn bằng một đoạn trong <code class="mono">~/.zshrc</code> có thể gỡ bỏ.</p>
         </div>
         <div class="feature">
           <div class="feature-icon">🪶</div>
-          <h3>Minimal dependencies</h3>
-          <p>Apple frameworks, the code in this repo, and Apple's own swift-nio-ssl (pinned) for hardware-backed TLS keys. Builds with just the Command Line Tools.</p>
+          <h3>Tối thiểu phụ thuộc</h3>
+          <p>Chỉ gồm framework của Apple, code trong repo này, và swift-nio-ssl của chính Apple (đã pin phiên bản) cho TLS key lưu bằng phần cứng. Build được chỉ với Command Line Tools.</p>
         </div>
         <div class="feature">
           <div class="feature-icon">🌐</div>
-          <h3>Multiple environments</h3>
-          <p>Manage remote Docker hosts over SSH or mutual TLS — or Colima / OrbStack on this Mac — and switch every tab with ⌘1…⌘9. TLS keys stay in the Secure Enclave behind Touch ID.</p>
+          <h3>Nhiều môi trường</h3>
+          <p>Quản lý Docker host từ xa qua SSH hoặc mutual TLS — hoặc Colima / OrbStack ngay trên Mac này — và chuyển mọi tab bằng ⌘1…⌘9. TLS key nằm trong Secure Enclave, mở bằng Touch ID.</p>
         </div>
         <div class="feature">
           <div class="feature-icon">📊</div>
           <h3>Monitor</h3>
-          <p>Live CPU, memory, network and disk per container plus VM vitals, a storage breakdown, and one-click cleanup of unused images, volumes and build cache.</p>
+          <p>CPU, bộ nhớ, mạng và ổ đĩa của từng container theo thời gian thực, cùng các chỉ số của VM, phân tích dung lượng lưu trữ, và dọn image, volume, build cache không dùng chỉ với một click.</p>
         </div>
         <div class="feature">
           <div class="feature-icon">🛟</div>
-          <h3>Self-healing VM</h3>
-          <p>If the engine stops answering or the guest kernel fails, DockZ restarts the VM on its own and keeps the console logs of recent boots for diagnosis.</p>
+          <h3>VM tự phục hồi</h3>
+          <p>Nếu engine ngừng phản hồi hoặc kernel của guest gặp lỗi, DockZ tự khởi động lại VM và giữ console log của các lần boot gần đây để chẩn đoán.</p>
         </div>
       </div>
     </div>
@@ -682,9 +683,9 @@
   <section>
     <div class="container">
       <div class="section-head">
-        <div class="section-eyebrow">Comparison</div>
-        <h2>One 8 MB app replaces the whole stack</h2>
-        <p class="section-sub">No accounts, no telemetry, no background updater. Sit down and read the whole codebase in one go.</p>
+        <div class="section-eyebrow">So sánh</div>
+        <h2>Một app 8 MB thay cho cả bộ công cụ</h2>
+        <p class="section-sub">Không tài khoản, không telemetry, không trình cập nhật chạy ngầm. Ngồi đọc hết cả codebase trong một lần là được.</p>
       </div>
       <div class="compare">
         <table>
@@ -699,46 +700,46 @@
           </thead>
           <tbody>
             <tr>
-              <td>💾 App size</td>
-              <td class="us">~8 MB <small>(3.5 MB download)</small></td>
+              <td>💾 Dung lượng app</td>
+              <td class="us">~8 MB <small>(bản tải 3.5 MB)</small></td>
               <td>~1.5 GB+</td>
-              <td>several hundred MB</td>
-              <td>CLI + brew deps</td>
+              <td>vài trăm MB</td>
+              <td>CLI + các gói phụ thuộc qua brew</td>
             </tr>
             <tr>
-              <td>💵 License</td>
-              <td class="us">Apache 2.0, free</td>
-              <td>Paid &ge; 250 staff</td>
-              <td>Closed-source, paid</td>
-              <td>MIT, free</td>
+              <td>💵 Giấy phép</td>
+              <td class="us">Apache 2.0, miễn phí</td>
+              <td>Trả phí nếu &ge; 250 nhân viên</td>
+              <td>Mã nguồn đóng, trả phí</td>
+              <td>MIT, miễn phí</td>
             </tr>
             <tr>
               <td>🐳 Docker engine</td>
-              <td class="us"><span class="check">✓</span> real</td>
+              <td class="us"><span class="check">✓</span> thật</td>
               <td><span class="check">✓</span></td>
               <td><span class="check">✓</span></td>
               <td><span class="check">✓</span></td>
             </tr>
             <tr>
-              <td>🖥️ Linux VMs</td>
+              <td>🖥️ Máy ảo Linux</td>
               <td class="us"><span class="check">✓</span> Alpine / Debian / Ubuntu</td>
               <td><span class="cross">—</span></td>
               <td><span class="cross">—</span></td>
               <td><span class="cross">—</span></td>
             </tr>
             <tr>
-              <td>⚡ Native (no Electron)</td>
+              <td>⚡ Native (không Electron)</td>
               <td class="us"><span class="check">✓</span> Swift / SwiftUI</td>
               <td><span class="cross">—</span> Electron</td>
               <td><span class="cross">—</span></td>
               <td><span class="cross">—</span> CLI</td>
             </tr>
             <tr>
-              <td>🔌 Auto port forward</td>
+              <td>🔌 Tự động forward port</td>
               <td class="us"><span class="check">✓</span> TCP + UDP</td>
               <td><span class="check">✓</span></td>
               <td><span class="check">✓</span></td>
-              <td>Manual</td>
+              <td>Thủ công</td>
             </tr>
           </tbody>
         </table>
@@ -749,37 +750,37 @@
   <section id="install">
     <div class="container">
       <div class="section-head">
-        <div class="section-eyebrow">Install</div>
-        <h2>Download, or build it in one command</h2>
-        <p class="section-sub">macOS 15+ on Apple Silicon. No Homebrew needed (but available), no admin password.</p>
+        <div class="section-eyebrow">Cài đặt</div>
+        <h2>Tải về, hoặc tự build chỉ với một lệnh</h2>
+        <p class="section-sub">macOS 15+ trên Apple Silicon. Không cần Homebrew (nhưng vẫn có bản Homebrew), không cần mật khẩu admin.</p>
       </div>
       <div class="install">
         <div class="install-card">
-          <h3>1. Download</h3>
-          <p class="hint">Grab <code class="mono">DockZ-&lt;version&gt;.dmg</code> from <a href="https://github.com/nextage-soft/dockz/releases/latest" target="_blank" rel="noopener">Releases</a>, drag DockZ to Applications, launch. Un-notarized builds: allow once in System Settings → Privacy &amp; Security → <em>Open Anyway</em>.</p>
-          <div class="code-block"><span class="c-comment"># or with Homebrew</span>
+          <h3>1. Tải về</h3>
+          <p class="hint">Tải <code class="mono">DockZ-&lt;version&gt;.dmg</code> từ trang <a href="https://github.com/nextage-soft/dockz/releases/latest" target="_blank" rel="noopener">Releases</a>, kéo DockZ vào Applications rồi mở lên. Với bản build chưa notarize: cho phép một lần trong System Settings → Privacy &amp; Security → <em>Open Anyway</em>.</p>
+          <div class="code-block"><span class="c-comment"># hoặc cài bằng Homebrew</span>
 <span class="c-cmd">brew tap</span> nextage-soft/dockz https://github.com/nextage-soft/dockz
 <span class="c-cmd">brew install</span> <span class="c-flag">--cask</span> nextage-soft/dockz/dockz</div>
         </div>
         <div class="install-card">
-          <h3>2. …or build from source</h3>
-          <p class="hint">Needs the Command Line Tools. Signs with the VM entitlement for you (Apple Development cert if found, else ad-hoc). Own certificate? See the <a href="https://github.com/nextage-soft/dockz/blob/master/docs/deployment-guide.md" target="_blank" rel="noopener">signing guide</a>.</p>
+          <h3>2. …hoặc build từ mã nguồn</h3>
+          <p class="hint">Cần có Command Line Tools. Script tự ký kèm entitlement cho VM (dùng chứng chỉ Apple Development nếu tìm thấy, không thì ký ad-hoc). Muốn dùng chứng chỉ riêng? Xem <a href="https://github.com/nextage-soft/dockz/blob/master/docs/deployment-guide.md" target="_blank" rel="noopener">hướng dẫn ký</a>.</p>
           <div class="code-block"><span class="c-cmd">git clone https://github.com/nextage-soft/dockz.git</span>
 <span class="c-cmd">cd dockz</span>
 <span class="c-cmd">scripts/build-and-bundle-app.sh</span>
 <span class="c-cmd">open</span> build/DockZ.app</div>
         </div>
         <div class="install-card">
-          <h3>3. Use docker as usual</h3>
-          <p class="hint">DockZ grabs the CLI and sets the <code class="mono">dockz</code> context for you.</p>
+          <h3>3. Dùng docker như bình thường</h3>
+          <p class="hint">DockZ tự tải CLI và thiết lập context <code class="mono">dockz</code> giúp bạn.</p>
           <div class="code-block"><span class="c-cmd">docker run --rm hello-world</span>
 <span class="c-cmd">docker run --rm -p 8080:80 nginx</span>
-<span class="c-comment"># open http://localhost:8080 — it just works</span></div>
+<span class="c-comment"># mở http://localhost:8080 — chạy luôn</span></div>
         </div>
         <div class="install-card">
-          <h3>4. (Optional) Linux machines</h3>
-          <p class="hint">Spin up an Ubuntu VM and SSH straight from Terminal.</p>
-          <div class="code-block"><span class="c-comment"># In the dashboard: Machines → New → Ubuntu 24.04</span>
+          <h3>4. (Tùy chọn) Máy ảo Linux</h3>
+          <p class="hint">Tạo một VM Ubuntu và SSH thẳng vào từ Terminal.</p>
+          <div class="code-block"><span class="c-comment"># Trong dashboard: Machines → New → Ubuntu 24.04</span>
 <span class="c-cmd">ssh ubuntu@&lt;ip&gt;</span>
 <span class="c-cmd">docker context use dockz</span></div>
         </div>
@@ -791,47 +792,47 @@
     <div class="container">
       <div class="section-head">
         <div class="section-eyebrow">FAQ</div>
-        <h2>Questions people ask</h2>
-        <p class="section-sub">Comparing tools? See DockZ vs <a href="vs/docker-desktop/">Docker Desktop</a>, <a href="vs/orbstack/">OrbStack</a> and <a href="vs/colima/">Colima</a>.</p>
+        <h2>Câu hỏi thường gặp</h2>
+        <p class="section-sub">Đang cân nhắc giữa các công cụ? Xem so sánh DockZ với <a href="vs/docker-desktop/">Docker Desktop</a>, <a href="vs/orbstack/">OrbStack</a> và <a href="vs/colima/">Colima</a>.</p>
       </div>
       <div class="faq">
         <details class="faq-item">
-          <summary>Is DockZ a free Docker Desktop alternative for Mac?</summary>
-          <p>Yes — free and Apache-2.0 licensed, with no per-seat licensing for companies. It runs the real Docker Engine (dockerd) in a lightweight Alpine Linux VM on Apple's Virtualization.framework.</p>
+          <summary>DockZ có phải là lựa chọn miễn phí thay Docker Desktop trên Mac không?</summary>
+          <p>Đúng vậy — miễn phí, giấy phép Apache 2.0, công ty dùng cũng không phải mua license theo đầu người. DockZ chạy Docker Engine thật (dockerd) trong một VM Alpine Linux gọn nhẹ trên Virtualization.framework của Apple.</p>
         </details>
         <details class="faq-item">
-          <summary>How is DockZ different from OrbStack or Colima?</summary>
-          <p>OrbStack is excellent but closed-source and paid for commercial use; Colima is free but CLI-only and installed via Homebrew. DockZ is a ~8 MB fully open-source native app with a GUI dashboard, needs no Homebrew and no admin password, and also manages general-purpose Linux VMs.</p>
+          <summary>DockZ khác gì OrbStack hay Colima?</summary>
+          <p>OrbStack rất tốt nhưng là mã nguồn đóng và phải trả phí khi dùng cho mục đích thương mại; Colima miễn phí nhưng chỉ có CLI và cài qua Homebrew. DockZ là app native mã nguồn mở hoàn toàn, chỉ ~8 MB, có dashboard GUI, không cần Homebrew, không cần mật khẩu admin, và còn quản lý được cả máy ảo Linux đa dụng.</p>
         </details>
         <details class="faq-item">
-          <summary>Can I run Kubernetes (k3s/k8s) on it?</summary>
-          <p>Yes — the Machines tab creates Alpine/Debian/Ubuntu VMs with one-click k3s or kubeadm master/node templates; nodes share one NAT network, so multi-node clusters work on a single Mac.</p>
+          <summary>Chạy Kubernetes (k3s/k8s) trên DockZ được không?</summary>
+          <p>Được — tab Machines tạo VM Alpine/Debian/Ubuntu kèm template master/node k3s hoặc kubeadm chỉ với một cú click; các node dùng chung một mạng NAT nên bạn dựng được cluster nhiều node ngay trên một chiếc Mac.</p>
         </details>
         <details class="faq-item">
-          <summary>Does docker compose / buildx / amd64 work?</summary>
-          <p>Yes. The engine is upstream Docker, so compose, buildx, and private registries behave exactly as on Linux. linux/amd64 images run through Rosetta.</p>
+          <summary>docker compose / buildx / amd64 có chạy được không?</summary>
+          <p>Có. Engine là Docker upstream nên compose, buildx và registry riêng chạy y hệt như trên Linux. Image linux/amd64 chạy qua Rosetta.</p>
         </details>
         <details class="faq-item">
-          <summary>Can DockZ manage remote Docker hosts?</summary>
-          <p>Yes — add other engines over SSH or mutual TLS (or another engine's socket on the Mac) and switch every tab between them. TLS client keys are created in the Mac's Secure Enclave and used with Touch ID.</p>
+          <summary>DockZ có quản lý được Docker host từ xa không?</summary>
+          <p>Có — bạn thêm các engine khác qua SSH hoặc mutual TLS (hoặc socket của một engine khác ngay trên Mac) rồi chuyển qua lại giữa chúng trên mọi tab. Client key TLS được tạo trong Secure Enclave của Mac và dùng kèm Touch ID.</p>
         </details>
         <details class="faq-item">
-          <summary>Do I need Docker or Homebrew installed first?</summary>
-          <p>No. First launch builds the guest image itself and downloads the official docker CLI + compose plugin, checksum-verified — a fresh Mac goes from zero to docker ps in one window.</p>
+          <summary>Có cần cài Docker hay Homebrew trước không?</summary>
+          <p>Không. Lần chạy đầu tiên, DockZ tự build guest image và tải docker CLI chính thức + plugin compose, có kiểm checksum — một chiếc Mac mới tinh đi từ con số 0 tới docker ps chỉ trong một cửa sổ.</p>
         </details>
       </div>
     </div>
   </section>
   <section class="cta">
     <div class="container">
-      <h2>Ready to ditch Docker Desktop?</h2>
-      <p>Download (or build in a few minutes), uninstall Docker Desktop, and forget Electron ever happened. DockZ runs native, sips RAM, and phones home to nobody.</p>
+      <h2>Sẵn sàng tạm biệt Docker Desktop?</h2>
+      <p>Tải về (hoặc build trong vài phút), gỡ Docker Desktop và quên luôn Electron đi. DockZ chạy native, tốn rất ít RAM và không gửi dữ liệu về cho ai cả.</p>
       <div class="cta-buttons">
         <a href="https://github.com/nextage-soft/dockz" target="_blank" rel="noopener" class="btn btn-primary">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.4 3-.405 1.02.005 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
-          Open GitHub repo
+          Mở repo GitHub
         </a>
-        <a href="https://github.com/nextage-soft/dockz/releases/latest" target="_blank" rel="noopener" class="btn btn-ghost">Download the latest release</a>
+        <a href="https://github.com/nextage-soft/dockz/releases/latest" target="_blank" rel="noopener" class="btn btn-ghost">Tải bản phát hành mới nhất</a>
       </div>
     </div>
   </section>
@@ -840,15 +841,15 @@
     <div class="container">
       <div class="links">
         <a href="https://github.com/nextage-soft/dockz" target="_blank" rel="noopener">GitHub</a>
-        <a href="#features">Features</a>
-        <a href="#install">Install</a>
-        <a href="#architecture">Architecture</a>
+        <a href="#features">Tính năng</a>
+        <a href="#install">Cài đặt</a>
+        <a href="#architecture">Kiến trúc</a>
         <a href="#faq">FAQ</a>
-        <a href="vs/docker-desktop/">vs Docker Desktop</a>
-        <a href="vs/orbstack/">vs OrbStack</a>
-        <a href="vs/colima/">vs Colima</a>
+        <a href="vs/docker-desktop/">so với Docker Desktop</a>
+        <a href="vs/orbstack/">so với OrbStack</a>
+        <a href="vs/colima/">so với Colima</a>
       </div>
-      <div>&copy; 2026 DockZ &middot; Apache License 2.0 &middot; Made with care for Apple Silicon.</div>
+      <div>&copy; 2026 DockZ &middot; Apache License 2.0 &middot; Làm bằng cả tấm lòng cho Apple Silicon.</div>
     </div>
   </footer>
 </body>

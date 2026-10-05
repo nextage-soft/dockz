@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DockZ vs OrbStack — lựa chọn miễn phí, mã nguồn mở thay OrbStack</title>
+  <meta name="description" content="DockZ vs OrbStack trên Apple Silicon: mã nguồn mở so với mã nguồn đóng, miễn phí so với license thương mại trả phí, Docker engine, máy ảo Linux, Kubernetes và snapshot." />
+  <link rel="canonical" href="https://dockz.nextagesoft.com/vi/vs/orbstack/" />
+  <link rel="alternate" hreflang="en" href="https://dockz.nextagesoft.com/vs/orbstack/" />
+  <link rel="alternate" hreflang="vi" href="https://dockz.nextagesoft.com/vi/vs/orbstack/" />
+  <link rel="alternate" hreflang="x-default" href="https://dockz.nextagesoft.com/vs/orbstack/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="DockZ" />
+  <meta property="og:locale" content="vi_VN" />
+  <meta property="og:title" content="DockZ vs OrbStack — lựa chọn miễn phí, mã nguồn mở thay OrbStack" />
+  <meta property="og:description" content="DockZ vs OrbStack trên Apple Silicon: mã nguồn mở so với mã nguồn đóng, miễn phí so với license thương mại trả phí, Docker engine, máy ảo Linux, Kubernetes và snapshot." />
+  <meta property="og:url" content="https://dockz.nextagesoft.com/vi/vs/orbstack/" />
+  <meta property="og:image" content="https://dockz.nextagesoft.com/assets/social-preview.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content="https://dockz.nextagesoft.com/assets/social-preview.png" />
+  <link rel="icon" type="image/png" href="../../../assets/logo.png" />
+  <link rel="stylesheet" href="../../../assets/page.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet" />
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "DockZ", "item": "https://dockz.nextagesoft.com/vi/"}, {"@type": "ListItem", "position": 2, "name": "DockZ so với OrbStack", "item": "https://dockz.nextagesoft.com/vi/vs/orbstack/"}]}</script>
+</head>
+<body>
+  <nav><div class="container nav-inner">
+    <a href="../../" class="brand"><img src="../../../assets/logo.png" alt="DockZ" /><span>DockZ</span></a>
+    <div class="nav-links">
+      <a href="../../vs/docker-desktop/">so với Docker Desktop</a>
+      <a href="../../vs/orbstack/">so với OrbStack</a>
+      <a href="../../vs/colima/">so với Colima</a>
+      <a href="../../../vs/orbstack/" hreflang="en" lang="en">English</a>
+      <a href="https://github.com/nextage-soft/dockz">GitHub</a>
+    </div>
+  </div></nav>
+  <main><div class="container">
+    <div class="eyebrow">So sánh</div>
+    <h1>DockZ vs <span class="gradient">OrbStack</span></h1>
+    <p class="lead">OrbStack là một app native nhanh và chỉn chu. DockZ hướng tới cùng trải nghiệm “native và nhẹ” đó, nhưng mã nguồn mở hoàn toàn và miễn phí cho cả mục đích thương mại.</p>
+    <h2>Nhìn nhanh</h2>
+<div class="table-wrap"><table>
+<tr><th></th><th>DockZ</th><th>OrbStack</th></tr>
+<tr><td>Giấy phép</td><td class="us">Apache 2.0, miễn phí cho tất cả</td><td>Độc quyền; trả phí khi dùng cho mục đích thương mại</td></tr>
+<tr><td>Mã nguồn</td><td class="us">Mã nguồn mở hoàn toàn</td><td>Mã nguồn đóng</td></tr>
+<tr><td>Giao diện</td><td class="us">SwiftUI native</td><td>Native</td></tr>
+<tr><td>Docker engine</td><td class="us"><code>dockerd</code> upstream trong Alpine</td><td>Stack riêng đã được tối ưu</td></tr>
+<tr><td>Máy ảo Linux đa dụng</td><td class="us">Alpine / Debian / Ubuntu</td><td>Có</td></tr>
+<tr><td>Kubernetes</td><td class="us">Template k3s / k8s nhiều node</td><td>k8s tích hợp sẵn</td></tr>
+<tr><td>Snapshot VM + rollback</td><td class="us">APFS copy-on-write</td><td>—</td></tr>
+<tr><td>Docker engine từ xa</td><td class="us">SSH / mutual TLS, key nằm trong Secure Enclave</td><td>—</td></tr>
+</table></div>
+    <h2>Vì sao nhiều người chọn DockZ</h2>
+    <ul>
+      <li>Miễn phí và mã nguồn mở (Apache 2.0) — không phải đếm số người dùng, không lo kiểm tra license.</li>
+      <li>Một app native ~8 MB: Docker engine, dashboard kiểu Portainer, máy ảo Linux kiểu Multipass và môi trường k3s/k8s để vọc.</li>
+      <li>Quản lý Docker host từ xa qua SSH hoặc mutual TLS; TLS key nằm yên trong Secure Enclave của Mac.</li>
+      <li>VM tự phục hồi: nếu engine ngừng phản hồi, DockZ tự khởi động lại.</li>
+    </ul>
+    <h2>Khi nào OrbStack là lựa chọn tốt hơn</h2>
+    <ul>
+      <li>Bạn muốn sự trưởng thành và khả năng tinh chỉnh hiệu năng của OrbStack (chia sẻ file, networking), và team bạn không ngại dùng một sản phẩm trả phí có hỗ trợ.</li><li>Bạn cần nhiều bản phân phối Linux hơn ngoài Alpine, Debian và Ubuntu.</li>
+    </ul>
+    <h2>Chuyển sang chỉ mất vài phút</h2>
+    <ul>
+      <li>Cài DockZ từ file DMG rồi mở lên; lần chạy đầu tiên sẽ build VM image và, nếu máy bạn chưa có <code>docker</code> CLI, cài luôn bản chính thức.</li>
+      <li>DockZ đăng ký một Docker context tên <code>dockz</code>: <code>docker context use dockz</code>. Image, file compose và các lệnh bạn đang dùng vẫn giữ nguyên.</li>
+      <li>Image được lưu riêng theo từng engine — hãy pull lại (hoặc <code>docker save</code> / <code>docker load</code>) và tạo lại các volume bạn cần.</li>
+    </ul>
+    <div class="cta">
+      <div><strong>Dùng thử DockZ</strong><p>Miễn phí, mã nguồn mở, ~8 MB (bản tải 3.5 MB). macOS 15+ trên Apple Silicon.</p></div>
+      <a class="btn btn-primary" href="https://github.com/nextage-soft/dockz/releases/latest">Tải file DMG</a>
+    </div>
+    <p class="note">So sánh tại thời điểm tháng 10/2026, dựa trên tài liệu công khai của từng sản phẩm. Thấy thông tin nào đã cũ? <a href="https://github.com/nextage-soft/dockz/issues">Mở issue</a> nhé.</p>
+  </div></main>
+  <footer><div class="container">&copy; 2026 DockZ &middot; Apache License 2.0 &middot; <a href="../../">dockz.nextagesoft.com</a> &middot; <a href="https://github.com/nextage-soft/dockz">GitHub</a></div></footer>
+</body>
+</html>
