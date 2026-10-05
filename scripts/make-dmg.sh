@@ -4,6 +4,7 @@
 # Signs the image too when SIGN_IDENTITY is a Developer ID (needed before
 # notarizing the DMG). Prints the DMG path on the last line.
 set -euo pipefail
+trap 'echo "error: ${BASH_SOURCE[0]}:$LINENO: \`$BASH_COMMAND\` failed" >&2' ERR
 cd "$(dirname "$0")/.."
 
 APP="build/DockZ.app"

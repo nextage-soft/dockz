@@ -2,15 +2,21 @@
 # Builds the Dockz host app with SPM, bundles it into build/Dockz.app and
 # codesigns it with the virtualization entitlement (required for VZ to boot).
 set -euo pipefail
+# Never fail silently: with pipefail a lookup that legitimately finds nothing
+# (grep without a match) ends the script, so say where it stopped.
+trap 'echo "error: ${BASH_SOURCE[0]}:$LINENO: \`$BASH_COMMAND\` failed" >&2' ERR
 cd "$(dirname "$0")/.."
 
 # Signing identity: use $SIGN_IDENTITY if set, else the first "Apple
 # Development" certificate on this machine, else fall back to ad-hoc ("-").
 # The VM needs the com.apple.security.virtualization entitlement, which is
-# carried even by an ad-hoc signature for local development.
-AUTO_IDENTITY="$(security find-identity -v -p codesigning 2>/dev/null \
-    | grep 'Apple Development' | head -1 | sed -E 's/.*"(.*)"$/\1/')"
-SIGN_IDENTITY="${SIGN_IDENTITY:-${AUTO_IDENTITY:--}}"
+# carried even by an ad-hoc signature for local development. Machines with no
+# certificate at all (CI runners) are normal, not an error.
+if [[ -z "${SIGN_IDENTITY:-}" ]]; then
+    AUTO_IDENTITY="$(security find-identity -v -p codesigning 2>/dev/null \
+        | { grep 'Apple Development' || true; } | head -1 | sed -E 's/.*"(.*)"$/\1/')"
+    SIGN_IDENTITY="${AUTO_IDENTITY:--}"
+fi
 
 # The macOS 27+ SDK turns SwiftUI @State into a macro whose compiler plugin
 # (SwiftUIMacros) does not ship with Command Line Tools. When building with
