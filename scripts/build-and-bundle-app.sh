@@ -92,10 +92,22 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 </plist>
 PLIST
 
+# Release builds stamp the version from the tag (CI sets these); local
+# builds keep the plist defaults above.
+if [[ -n "${APP_VERSION:-}" ]]; then
+    /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $APP_VERSION" "$APP/Contents/Info.plist"
+fi
+if [[ -n "${BUILD_NUMBER:-}" ]]; then
+    /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$APP/Contents/Info.plist"
+fi
+
 # Hardened runtime: macOS refuses injected libraries (DYLD_INSERT_LIBRARIES)
 # and debugger attachment, so other code can't ride inside DockZ to use what
 # it is trusted with (Secure Enclave keys, keychain items, the VM).
-codesign --force --options runtime --sign "$SIGN_IDENTITY" \
+# Notarization also requires a secure timestamp on Developer ID signatures.
+TIMESTAMP_FLAG=()
+[[ "$SIGN_IDENTITY" == "Developer ID Application"* ]] && TIMESTAMP_FLAG=(--timestamp)
+codesign --force --options runtime "${TIMESTAMP_FLAG[@]+"${TIMESTAMP_FLAG[@]}"}" --sign "$SIGN_IDENTITY" \
     --entitlements scripts/dockz.entitlements \
     "$APP"
 
