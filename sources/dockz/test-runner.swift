@@ -33,6 +33,7 @@ enum TestRunner {
         environmentGuide()
         tlsClientKeyFlow()
         listFilters()
+        vmSupervisor()
 
         print("")
         if failures.isEmpty {

@@ -1,9 +1,10 @@
 import Foundation
 
-/// Sampling engine behind the Monitor tab. Polls only while the tab is open
-/// (the view calls start/stop): VM vitals + per-container stats every tick,
-/// the /system/df breakdown every tenth tick (docker walks the filesystem for
-/// it, so it is much heavier than the rest).
+/// Sampling engine behind the Monitor tab. Runs only while the tab is open
+/// (the view calls start/stop): VM vitals every tick, per-container stats
+/// from one long-lived Docker stats stream per running container (read at
+/// each tick — no new connection per sample), and the /system/df breakdown
+/// every tenth tick (docker walks the filesystem for it).
 @MainActor
 final class MonitorStore: ObservableObject {
     static let historyLength = 100
@@ -44,6 +45,7 @@ final class MonitorStore: ObservableObject {
     private var previousSamples: [String: MonitorParse.ContainerSample] = [:]
     private var previousSampleAt: Date?
     private var tick = 0
+    private let statsStreams = ContainerStatsStreams()
 
     private var api: () -> DockerAPIClient? = { nil }
     private var shell: () -> DockerAPIClient.VsockConnect? = { nil }
@@ -77,6 +79,7 @@ final class MonitorStore: ObservableObject {
     func stop() {
         timer?.invalidate()
         timer = nil
+        statsStreams.stopAll()
         // Rates are deltas; stale baselines would spike on the next open.
         previousGuest = nil
         previousSamples = [:]
@@ -86,6 +89,7 @@ final class MonitorStore: ObservableObject {
     /// Clears everything measured on the previous engine (rows, history,
     /// delta baselines) while keeping the timer, so the new one starts clean.
     func resetForEnvironmentChange() {
+        statsStreams.stopAll()
         vm = nil
         vmCPUPercent = 0
         cpuHistory = []
@@ -131,49 +135,39 @@ final class MonitorStore: ObservableObject {
 
     private func sampleContainers() {
         guard let client = api() else {
+            statsStreams.stopAll()
             rows = []
             engineInfoLabel = ""
             return
         }
         let running = runningContainers().filter(\.isRunning)
         engineInfoLabel = "\(running.count) container\(running.count == 1 ? "" : "s") running"
+        statsStreams.sync(running: Set(running.map(\.id)), client: client)
+
         let now = Date()
         let interval = previousSampleAt.map { now.timeIntervalSince($0) } ?? tickInterval
         previousSampleAt = now
-
         var updated: [String: MonitorParse.ContainerSample] = [:]
-        let group = DispatchGroup()
         var newRows: [ContainerRow] = []
-        let lock = NSLock()
         for container in running {
-            group.enter()
-            client.containerStatsRaw(id: container.id) { [weak self] dict in
-                defer { group.leave() }
-                guard let self, let dict,
-                      let sample = MonitorParse.containerSample(from: dict) else { return }
-                let previous = self.previousSamples[container.id]
-                let row = ContainerRow(
-                    id: container.id,
-                    name: container.name,
-                    cpuPercent: sample.cpuPercent,
-                    memUsedBytes: sample.memUsedBytes,
-                    memLimitBytes: sample.memLimitBytes,
-                    netRxPerSecond: previous.map { MonitorParse.rate($0.netRxBytes, sample.netRxBytes, seconds: interval) } ?? 0,
-                    netTxPerSecond: previous.map { MonitorParse.rate($0.netTxBytes, sample.netTxBytes, seconds: interval) } ?? 0,
-                    blockReadPerSecond: previous.map { MonitorParse.rate($0.blockReadBytes, sample.blockReadBytes, seconds: interval) } ?? 0,
-                    blockWritePerSecond: previous.map { MonitorParse.rate($0.blockWriteBytes, sample.blockWriteBytes, seconds: interval) } ?? 0
-                )
-                lock.lock()
-                newRows.append(row)
-                updated[container.id] = sample
-                lock.unlock()
-            }
+            guard let dict = statsStreams.latestSample(for: container.id),
+                  let sample = MonitorParse.containerSample(from: dict) else { continue }
+            let previous = previousSamples[container.id]
+            newRows.append(ContainerRow(
+                id: container.id,
+                name: container.name,
+                cpuPercent: sample.cpuPercent,
+                memUsedBytes: sample.memUsedBytes,
+                memLimitBytes: sample.memLimitBytes,
+                netRxPerSecond: previous.map { MonitorParse.rate($0.netRxBytes, sample.netRxBytes, seconds: interval) } ?? 0,
+                netTxPerSecond: previous.map { MonitorParse.rate($0.netTxBytes, sample.netTxBytes, seconds: interval) } ?? 0,
+                blockReadPerSecond: previous.map { MonitorParse.rate($0.blockReadBytes, sample.blockReadBytes, seconds: interval) } ?? 0,
+                blockWritePerSecond: previous.map { MonitorParse.rate($0.blockWriteBytes, sample.blockWriteBytes, seconds: interval) } ?? 0
+            ))
+            updated[container.id] = sample
         }
-        group.notify(queue: .main) { [weak self] in
-            guard let self else { return }
-            self.previousSamples = updated
-            self.rows = newRows.sorted { $0.cpuPercent > $1.cpuPercent }
-        }
+        previousSamples = updated
+        rows = newRows.sorted { $0.cpuPercent > $1.cpuPercent }
     }
 
     private func sampleBreakdown() {
