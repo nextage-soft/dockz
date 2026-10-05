@@ -7,6 +7,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settings = DockzSettings()
     private var menuController: StatusMenuController?
     private var vmController: VMController?
+    private var restartPolicy = VMRestartPolicy()
+    private let engineWatchdog = EngineWatchdog()
     private var bringup: DockerBringupCoordinator?
     private var display = StatusMenuController.DisplayState()
     private let dashboardStore = DashboardStore()
@@ -95,16 +97,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .running:
             startBringup()
         case .stopped, .failed:
+            let unexpected = !(vmController?.stopWasRequested ?? true)
+            engineWatchdog.stop()
             bringup?.stop()
             bringup = nil
             vmController = nil
             display.dockerReady = false
             display.guestIP = nil
             display.forwardedPorts = []
+            if unexpected { recoverFromUnexpectedStop(state) }
         case .starting, .stopping:
             break
         }
         refreshMenu()
+    }
+
+    // MARK: - Recovery (see vm-supervisor.swift)
+
+    /// The guest rebooted itself (kernel guard) or Virtualization failed:
+    /// bring the engine back, unless it keeps dying.
+    private func recoverFromUnexpectedStop(_ state: VMState) {
+        guard restartPolicy.allowRestart(at: ProcessInfo.processInfo.systemUptime) else {
+            HostLog.write("VM keeps stopping — not restarting again (\(restartPolicy.maxRestarts) restarts within \(Int(restartPolicy.window / 60)) min)")
+            dashboardStore.lastError = "The Docker VM stopped unexpectedly several times in a row, so DockZ stopped restarting it. Details are in host.log and console.*.log in the data folder."
+            return
+        }
+        HostLog.write("unexpected stop (\(state)) — restarting the VM")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in self?.startVM() }
+    }
+
+    /// The VM is up but dockerd has not answered for a minute: the guest is
+    /// wedged (seen: kernel oops → ext4 deadlock). Restart it.
+    private func restartUnresponsiveEngine() {
+        guard let vmController, restartPolicy.allowRestart(at: ProcessInfo.processInfo.systemUptime) else {
+            HostLog.write("engine unresponsive — restart limit reached, leaving the VM as is")
+            return
+        }
+        HostLog.write("engine unresponsive (no /_ping answer for a minute) — restarting the VM")
+        dashboardStore.lastError = "The Docker engine stopped responding, so DockZ restarted its VM. Containers with a restart policy come back by themselves."
+        vmController.stop { [weak self] in self?.startVM() }
     }
 
     private func startBringup() {
@@ -119,7 +150,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let bringup else { return }
         // Guest clock zone is not persisted in a way we control across image
         // rebuilds, so push it every time the engine comes up.
-        if bringup.dockerReady && !display.dockerReady { pushGuestTimeZone(completion: nil) }
+        if bringup.dockerReady && !display.dockerReady {
+            pushGuestTimeZone(completion: nil)
+            if let connect = vmController?.vsockConnector() {
+                GuestKernelGuard.apply(connect: connect) { _ in }
+            }
+            engineWatchdog.start(api: { [weak self] in self?.bringup?.apiClient }) { [weak self] in
+                self?.restartUnresponsiveEngine()
+            }
+        }
         display.dockerReady = bringup.dockerReady
         display.guestIP = bringup.guestIP
         display.forwardedPorts = bringup.forwardedPorts

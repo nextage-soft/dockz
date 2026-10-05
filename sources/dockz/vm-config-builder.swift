@@ -78,6 +78,7 @@ enum VMConfigBuilder {
 
     private static func makeSerialConsole(paths: DockzPaths) throws -> VZVirtioConsoleDeviceSerialPortConfiguration {
         let console = VZVirtioConsoleDeviceSerialPortConfiguration()
+        ConsoleLogRotation.rotate(paths.consoleLog)
         console.attachment = try VZFileSerialPortAttachment(url: paths.consoleLog, append: false)
         return console
     }

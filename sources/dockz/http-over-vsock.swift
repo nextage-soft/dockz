@@ -16,9 +16,28 @@ final class RawHTTPCall {
     static let responseIdleTimeout: TimeInterval = 120
 
     private let connection: DockerByteStream
+    /// Guards the descriptor's lifetime: `cancel()` may only touch it while
+    /// the reader thread has not closed it (the number could be reused).
+    private let lifecycle = NSLock()
+    private var finished = false
 
     init(stream: DockerByteStream) {
         self.connection = stream
+    }
+
+    /// Ends an open-ended stream from any thread. The reader sees EOF, then
+    /// closes the connection and fires `onClose` itself.
+    func cancel() {
+        lifecycle.lock()
+        if !finished { shutdown(connection.fileDescriptor, SHUT_RDWR) }
+        lifecycle.unlock()
+    }
+
+    private func finishAndClose() {
+        lifecycle.lock()
+        finished = true
+        lifecycle.unlock()
+        connection.close()
     }
 
     func get(path: String, completion: @escaping (Result<Response, Error>) -> Void) {
@@ -45,7 +64,7 @@ final class RawHTTPCall {
         onClose: (() -> Void)?
     ) {
         let connection = self.connection
-        Thread.detachNewThread {
+        Thread.detachNewThread { [self] in
             let fd = connection.fileDescriptor
             var noSigpipe: Int32 = 1
             _ = setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &noSigpipe, socklen_t(MemoryLayout<Int32>.size))
@@ -70,7 +89,7 @@ final class RawHTTPCall {
             let written = requestBytes.withUnsafeBytes { write(fd, $0.baseAddress, $0.count) }
             guard written == requestBytes.count else {
                 let reason = connection.failureDiagnostics() ?? "request write failed"
-                connection.close()
+                finishAndClose()
                 completion?(.failure(DockzError.httpProtocolError(reason)))
                 onClose?()
                 return
@@ -131,7 +150,7 @@ final class RawHTTPCall {
 
             // Ask the transport why before closing it tears that state down.
             let diagnostics = headersParsed ? nil : connection.failureDiagnostics()
-            connection.close()
+            finishAndClose()
             if let completion {
                 if headersParsed {
                     completion(.success(Response(status: status, body: body)))
