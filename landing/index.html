@@ -5,6 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>DockZ — Docker & Linux VMs on Apple Silicon, natively</title>
   <meta name="description" content="DockZ is a ~8 MB macOS menu bar app that runs the real dockerd in a tiny Alpine VM on Apple Silicon. Docker Desktop + Multipass in one, Apache 2.0, zero dependencies." />
+  <link rel="canonical" href="https://dockz.nextagesoft.com/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="DockZ" />
+  <meta property="og:title" content="DockZ — Docker &amp; Linux VMs on Apple Silicon, natively" />
+  <meta property="og:description" content="DockZ is a ~8 MB macOS menu bar app that runs the real dockerd in a tiny Alpine VM on Apple Silicon. Docker Desktop + Multipass in one, Apache 2.0, zero dependencies." />
+  <meta property="og:url" content="https://dockz.nextagesoft.com/" />
+  <meta property="og:image" content="https://dockz.nextagesoft.com/assets/social-preview.png" />
+  <meta property="og:image:width" content="1280" />
+  <meta property="og:image:height" content="640" />
+  <meta property="og:image:alt" content="DockZ — Docker &amp; Linux VMs on Apple Silicon, natively" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="DockZ — Docker &amp; Linux VMs on Apple Silicon, natively" />
+  <meta name="twitter:description" content="DockZ is a ~8 MB macOS menu bar app that runs the real dockerd in a tiny Alpine VM on Apple Silicon. Docker Desktop + Multipass in one, Apache 2.0, zero dependencies." />
+  <meta name="twitter:image" content="https://dockz.nextagesoft.com/assets/social-preview.png" />
+  <meta name="keywords" content="Docker Desktop alternative, Docker on Mac, Apple Silicon, OrbStack alternative, Colima GUI, Portainer for Mac, Kubernetes on Mac, k3s, macOS virtualization" />
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "DockZ", "description": "DockZ is a ~8 MB macOS menu bar app that runs the real dockerd in a tiny Alpine VM on Apple Silicon. Docker Desktop + Multipass in one, Apache 2.0, zero dependencies.", "url": "https://dockz.nextagesoft.com/", "image": "https://dockz.nextagesoft.com/assets/social-preview.png", "applicationCategory": "DeveloperApplication", "operatingSystem": "macOS 15 or later (Apple Silicon)", "softwareVersion": "0.2.1", "fileSize": "3.5MB", "license": "https://www.apache.org/licenses/LICENSE-2.0", "downloadUrl": "https://github.com/nextage-soft/dockz/releases/latest", "codeRepository": "https://github.com/nextage-soft/dockz", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}, "author": {"@type": "Organization", "name": "NextAge Soft", "url": "https://nextagesoft.com"}}</script>
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Is DockZ a free Docker Desktop alternative for Mac?", "acceptedAnswer": {"@type": "Answer", "text": "Yes — free and Apache-2.0 licensed, with no per-seat licensing for companies. It runs the real Docker Engine (dockerd) in a lightweight Alpine Linux VM on Apple's Virtualization.framework."}}, {"@type": "Question", "name": "How is DockZ different from OrbStack or Colima?", "acceptedAnswer": {"@type": "Answer", "text": "OrbStack is excellent but closed-source and paid for commercial use; Colima is free but CLI-only and installed via Homebrew. DockZ is a ~8 MB fully open-source native app with a GUI dashboard, needs no Homebrew and no admin password, and also manages general-purpose Linux VMs."}}, {"@type": "Question", "name": "Can I run Kubernetes (k3s/k8s) on it?", "acceptedAnswer": {"@type": "Answer", "text": "Yes — the Machines tab creates Alpine/Debian/Ubuntu VMs with one-click k3s or kubeadm master/node templates; nodes share one NAT network, so multi-node clusters work on a single Mac."}}, {"@type": "Question", "name": "Does docker compose / buildx / amd64 work?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. The engine is upstream Docker, so compose, buildx, and private registries behave exactly as on Linux. linux/amd64 images run through Rosetta."}}, {"@type": "Question", "name": "Can DockZ manage remote Docker hosts?", "acceptedAnswer": {"@type": "Answer", "text": "Yes — add other engines over SSH or mutual TLS (or another engine's socket on the Mac) and switch every tab between them. TLS client keys are created in the Mac's Secure Enclave and used with Touch ID."}}, {"@type": "Question", "name": "Do I need Docker or Homebrew installed first?", "acceptedAnswer": {"@type": "Answer", "text": "No. First launch builds the guest image itself and downloads the official docker CLI + compose plugin, checksum-verified — a fresh Mac goes from zero to docker ps in one window."}}]}</script>
   <link rel="icon" type="image/png" href="assets/logo.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -445,6 +462,10 @@
       .stats { grid-template-columns: 1fr; }
       .hero-badge { font-size: 11px; padding: 5px 10px; }
     }
+    .faq { max-width: 820px; margin: 0 auto; display: grid; gap: 10px; }
+    .faq-item { border: 1px solid var(--border); border-radius: 12px; background: var(--bg-2); padding: 14px 18px; }
+    .faq-item summary { cursor: pointer; font-weight: 600; color: var(--text); }
+    .faq-item p { color: var(--text-dim); margin-top: 8px; }
   </style>
 </head>
 <body>
@@ -458,6 +479,7 @@
         <a href="#features">Features</a>
         <a href="#screenshots">Screenshots</a>
         <a href="#install">Install</a>
+        <a href="vs/docker-desktop/">Compare</a>
         <a href="https://github.com/nextage-soft/dockz" target="_blank" rel="noopener" class="btn btn-ghost">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.4 3-.405 1.02.005 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
           GitHub
@@ -730,6 +752,41 @@
     </div>
   </section>
 
+  <section id="faq">
+    <div class="container">
+      <div class="section-head">
+        <div class="section-eyebrow">FAQ</div>
+        <h2>Questions people ask</h2>
+        <p class="section-sub">Comparing tools? See DockZ vs <a href="vs/docker-desktop/">Docker Desktop</a>, <a href="vs/orbstack/">OrbStack</a> and <a href="vs/colima/">Colima</a>.</p>
+      </div>
+      <div class="faq">
+        <details class="faq-item">
+          <summary>Is DockZ a free Docker Desktop alternative for Mac?</summary>
+          <p>Yes — free and Apache-2.0 licensed, with no per-seat licensing for companies. It runs the real Docker Engine (dockerd) in a lightweight Alpine Linux VM on Apple's Virtualization.framework.</p>
+        </details>
+        <details class="faq-item">
+          <summary>How is DockZ different from OrbStack or Colima?</summary>
+          <p>OrbStack is excellent but closed-source and paid for commercial use; Colima is free but CLI-only and installed via Homebrew. DockZ is a ~8 MB fully open-source native app with a GUI dashboard, needs no Homebrew and no admin password, and also manages general-purpose Linux VMs.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Can I run Kubernetes (k3s/k8s) on it?</summary>
+          <p>Yes — the Machines tab creates Alpine/Debian/Ubuntu VMs with one-click k3s or kubeadm master/node templates; nodes share one NAT network, so multi-node clusters work on a single Mac.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Does docker compose / buildx / amd64 work?</summary>
+          <p>Yes. The engine is upstream Docker, so compose, buildx, and private registries behave exactly as on Linux. linux/amd64 images run through Rosetta.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Can DockZ manage remote Docker hosts?</summary>
+          <p>Yes — add other engines over SSH or mutual TLS (or another engine's socket on the Mac) and switch every tab between them. TLS client keys are created in the Mac's Secure Enclave and used with Touch ID.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Do I need Docker or Homebrew installed first?</summary>
+          <p>No. First launch builds the guest image itself and downloads the official docker CLI + compose plugin, checksum-verified — a fresh Mac goes from zero to docker ps in one window.</p>
+        </details>
+      </div>
+    </div>
+  </section>
   <section class="cta">
     <div class="container">
       <h2>Ready to ditch Docker Desktop?</h2>
@@ -751,6 +808,10 @@
         <a href="#features">Features</a>
         <a href="#install">Install</a>
         <a href="#architecture">Architecture</a>
+        <a href="#faq">FAQ</a>
+        <a href="vs/docker-desktop/">vs Docker Desktop</a>
+        <a href="vs/orbstack/">vs OrbStack</a>
+        <a href="vs/colima/">vs Colima</a>
       </div>
       <div>&copy; 2026 DockZ &middot; Apache License 2.0 &middot; Made with care for Apple Silicon.</div>
     </div>

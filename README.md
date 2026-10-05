@@ -16,7 +16,7 @@ plus a Docker Desktop–style dashboard and Multipass-style Linux machines.</p>
 
 <p align="center">
   <a href="https://github.com/nextage-soft/dockz/releases/latest"><b>⬇️ Download the latest DMG</b></a>
-  &nbsp;·&nbsp; <a href="https://dockz.pages.dev">Website</a>
+  &nbsp;·&nbsp; <a href="https://dockz.nextagesoft.com">Website</a>
   &nbsp;·&nbsp; <a href="CHANGELOG.md">Changelog</a>
   &nbsp;·&nbsp; <a href="docs/deployment-guide.md">Signing guide</a>
 </p>
@@ -113,7 +113,7 @@ What makes it different from the usual suspects:
 | 🐳 Docker engine           |  real `dockerd`    | real `dockerd`  | own stack       | real `dockerd`  |        —        |
 | 🖥️ Dashboard (containers/stacks) |      ✅      |       ✅        |       ✅        |       ❌        |        —        |
 | 📦 General Linux VMs       | ✅ + cloud-init    |       ❌        |       ✅        |    via lima     |       ✅        |
-| ☸️ k8s out of the box      | ✅ multi-node k3s/k8s | single-node  |    ✅ (k8s)     |     manual      |       ❌        |
+| ☸️ k8s out of the box      | ✅ multi-node k3s/k8s | single-node  |    ✅ (k8s)     | single-node k3s (`--kubernetes`) |       ❌        |
 | 🔧 Install prerequisites   |     **none**       |  admin helper   |      none       |    Homebrew     |  installer pkg  |
 | 📸 VM snapshots + rollback | ✅ APFS CoW        |       ❌        |       ❌        |       ❌        |       ✅        |
 | 🔓 Open source             |   ✅ fully         |    partially    |       ❌        |       ✅        |       ✅        |
