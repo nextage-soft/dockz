@@ -45,8 +45,10 @@ as a normal Docker context: `docker`, `docker compose`, and buildx just work.
 | | |
 | --- | --- |
 | 🐳&nbsp;**Real Docker engine** | Genuine `dockerd` in Alpine Linux, exposed as the `dockz` context — `docker`, `docker compose`, buildx all work. |
-| 🖥️&nbsp;**Management dashboard** | Docker Desktop / Portainer style: containers, images, volumes, networks, registries, compose **stacks** — create/edit forms, live logs, stats, inspect. |
+| 🖥️&nbsp;**Management dashboard** | Docker Desktop / Portainer style: containers, images, volumes, networks, registries, compose **stacks** — create/edit forms, live logs, stats, inspect. Every list has scope chips, search and sort; containers are grouped by stack, with crashes and unhealthy health checks flagged (⌘F / ⌘R / ⌘N). |
+| 📊&nbsp;**Monitor** | Live CPU, memory, network and disk I/O per container, VM vitals, a storage breakdown, and cleanup of unused images, volumes and build cache. |
 | 🌐&nbsp;**Multiple environments** | Manage other Docker engines too — remote hosts over **SSH** or **mutual TLS**, or another engine's socket on this Mac — and switch every tab between them from the sidebar (⌘1…⌘9). Management only: nothing is joined or shared. |
+| 🛟&nbsp;**Self-healing VM** | If dockerd stops answering or the guest kernel fails, DockZ restarts the VM itself (crash-loop limited) and keeps the console logs of the last boots. |
 | 📦&nbsp;**Linux machines** | Multipass-style VMs (Alpine / Debian / Ubuntu, ARM64) over SSH, with one-click **k3s / k8s** master/node cluster templates. |
 | 🚀&nbsp;**One-window onboarding** | First launch builds the guest image in a throwaway netboot VM and installs the CLI in parallel — when it closes, `docker ps` works. |
 | 🔌&nbsp;**Auto port forwarding** | Published TCP + UDP ports mirrored on `localhost` by watching the Docker events API. |
@@ -64,7 +66,7 @@ Apache-2.0, no accounts, no telemetry, no Electron.
 
 What makes it different from the usual suspects:
 
-- **Genuinely tiny and native.** The app bundle is ~8 MB of Swift/SwiftUI on
+- **Genuinely tiny and native.** The app bundle is ~8 MB (a 3.5 MB download) of Swift/SwiftUI on
   Apple's Virtualization.framework. No Electron shell, no bundled node/qemu, no
   background updater. The 64 GB VM disk is APFS-sparse — a fresh engine really
   occupies ~1.3 GB.

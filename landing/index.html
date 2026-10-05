@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>DockZ — Docker & Linux VMs on Apple Silicon, natively</title>
-  <meta name="description" content="DockZ is a ~5MB macOS menu bar app that runs the real dockerd in a tiny Alpine VM on Apple Silicon. Docker Desktop + Multipass in one, Apache 2.0, zero dependencies." />
+  <meta name="description" content="DockZ is a ~8 MB macOS menu bar app that runs the real dockerd in a tiny Alpine VM on Apple Silicon. Docker Desktop + Multipass in one, Apache 2.0, zero dependencies." />
   <link rel="icon" type="image/png" href="assets/logo.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -478,12 +478,12 @@
         on <span class="gradient">Apple Silicon</span>, natively.
       </h1>
       <p class="hero-sub">
-        DockZ is a ~5MB menu bar app that runs the real <code class="mono">dockerd</code> in a tiny Alpine VM — with a Docker Desktop&ndash;style dashboard and Multipass&ndash;style Linux machines. One app replaces the whole stack.
+        DockZ is a ~8 MB menu bar app that runs the real <code class="mono">dockerd</code> in a tiny Alpine VM — with a Docker Desktop&ndash;style dashboard and Multipass&ndash;style Linux machines. One app replaces the whole stack.
       </p>
       <div class="hero-cta">
-        <a href="#install" class="btn btn-primary">
+        <a href="https://github.com/nextage-soft/dockz/releases/latest" target="_blank" rel="noopener" class="btn btn-primary">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-          Download DockZ.app
+          Download DockZ.dmg
         </a>
         <a href="https://github.com/nextage-soft/dockz" target="_blank" rel="noopener" class="btn btn-ghost">
           View source &rarr;
@@ -492,12 +492,12 @@
 
       <div class="stats">
         <div class="stat">
-          <div class="stat-value">~5 MB</div>
+          <div class="stat-value">~8 MB</div>
           <div class="stat-label">App size</div>
         </div>
         <div class="stat">
-          <div class="stat-value">0</div>
-          <div class="stat-label">Swift deps</div>
+          <div class="stat-value">3.5 MB</div>
+          <div class="stat-label">Download</div>
         </div>
         <div class="stat">
           <div class="stat-value">100%</div>
@@ -567,7 +567,7 @@
         <div class="feature">
           <div class="feature-icon">🖥️</div>
           <h3>Native dashboard</h3>
-          <p>Containers, images, volumes, networks, registries, compose stacks. Create / edit forms, live logs, stats, inspect — like Docker Desktop, but it's SwiftUI.</p>
+          <p>Containers, images, volumes, networks, registries, compose stacks. Create / edit forms, live logs, inspect, and filters + search on every list (containers grouped by stack, crashes flagged) — like Docker Desktop, but it's SwiftUI.</p>
         </div>
         <div class="feature">
           <div class="feature-icon">📦</div>
@@ -601,8 +601,23 @@
         </div>
         <div class="feature">
           <div class="feature-icon">🪶</div>
-          <h3>Zero dependencies</h3>
-          <p>Only Apple frameworks and the code in this repo. Builds offline with just the Command Line Tools. Auditable in a single sitting.</p>
+          <h3>Minimal dependencies</h3>
+          <p>Apple frameworks, the code in this repo, and Apple's own swift-nio-ssl (pinned) for hardware-backed TLS keys. Builds with just the Command Line Tools.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">🌐</div>
+          <h3>Multiple environments</h3>
+          <p>Manage remote Docker hosts over SSH or mutual TLS — or Colima / OrbStack on this Mac — and switch every tab with ⌘1…⌘9. TLS keys stay in the Secure Enclave behind Touch ID.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">📊</div>
+          <h3>Monitor</h3>
+          <p>Live CPU, memory, network and disk per container plus VM vitals, a storage breakdown, and one-click cleanup of unused images, volumes and build cache.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">🛟</div>
+          <h3>Self-healing VM</h3>
+          <p>If the engine stops answering or the guest kernel fails, DockZ restarts the VM on its own and keeps the console logs of recent boots for diagnosis.</p>
         </div>
       </div>
     </div>
@@ -612,7 +627,7 @@
     <div class="container">
       <div class="section-head">
         <div class="section-eyebrow">Comparison</div>
-        <h2>One 5 MB app replaces the whole stack</h2>
+        <h2>One 8 MB app replaces the whole stack</h2>
         <p class="section-sub">No accounts, no telemetry, no background updater. Sit down and read the whole codebase in one go.</p>
       </div>
       <div class="compare">
@@ -629,7 +644,7 @@
           <tbody>
             <tr>
               <td>💾 App size</td>
-              <td class="us">~5 MB</td>
+              <td class="us">~8 MB <small>(3.5 MB download)</small></td>
               <td>~1.5 GB+</td>
               <td>several hundred MB</td>
               <td>CLI + brew deps</td>
@@ -679,24 +694,22 @@
     <div class="container">
       <div class="section-head">
         <div class="section-eyebrow">Install</div>
-        <h2>Build it in one command</h2>
-        <p class="section-sub">All you need is macOS 15+, Apple Silicon, and the Command Line Tools. No Homebrew, no admin password.</p>
+        <h2>Download, or build it in one command</h2>
+        <p class="section-sub">macOS 15+ on Apple Silicon. No Homebrew, no admin password.</p>
       </div>
       <div class="install">
         <div class="install-card">
-          <h3>1. Build &amp; bundle</h3>
-          <p class="hint">Auto-signs with an Apple Development cert if found, otherwise ad-hoc.</p>
-          <div class="code-block"><span class="c-cmd">git clone https://github.com/nextage-soft/dockz.git</span>
-<span class="c-cmd">cd dockz</span>
-<span class="c-cmd">scripts/build-and-bundle-app.sh</span></div>
+          <h3>1. Download</h3>
+          <p class="hint">Grab <code class="mono">DockZ-&lt;version&gt;.dmg</code> from <a href="https://github.com/nextage-soft/dockz/releases/latest" target="_blank" rel="noopener">Releases</a>, drag DockZ to Applications, launch. Un-notarized builds: allow once in System Settings → Privacy &amp; Security → <em>Open Anyway</em>.</p>
+          <div class="code-block"><span class="c-comment"># optional: check the download</span>
+<span class="c-cmd">shasum</span> <span class="c-flag">-a 256 -c</span> DockZ-0.2.0.dmg.sha256</div>
         </div>
         <div class="install-card">
-          <h3>2. Re-sign &amp; open</h3>
-          <p class="hint">Required for the <code class="mono">com.apple.security.virtualization</code> entitlement.</p>
-          <div class="code-block"><span class="c-cmd">xattr</span> <span class="c-flag">-dr</span> com.apple.quarantine build/DockZ.app
-<span class="c-cmd">codesign</span> <span class="c-flag">--force --deep --options runtime</span> \
-  <span class="c-flag">--entitlements</span> scripts/dockz.entitlements \
-  <span class="c-flag">--sign</span> - build/DockZ.app
+          <h3>2. …or build from source</h3>
+          <p class="hint">Needs the Command Line Tools. Signs with the VM entitlement for you (Apple Development cert if found, else ad-hoc). Own certificate? See the <a href="https://github.com/nextage-soft/dockz/blob/master/docs/deployment-guide.md" target="_blank" rel="noopener">signing guide</a>.</p>
+          <div class="code-block"><span class="c-cmd">git clone https://github.com/nextage-soft/dockz.git</span>
+<span class="c-cmd">cd dockz</span>
+<span class="c-cmd">scripts/build-and-bundle-app.sh</span>
 <span class="c-cmd">open</span> build/DockZ.app</div>
         </div>
         <div class="install-card">
@@ -720,13 +733,13 @@
   <section class="cta">
     <div class="container">
       <h2>Ready to ditch Docker Desktop?</h2>
-      <p>Clone, build in a few minutes, uninstall Docker Desktop, and forget Electron ever happened. DockZ runs native, sips RAM, and phones home to nobody.</p>
+      <p>Download (or build in a few minutes), uninstall Docker Desktop, and forget Electron ever happened. DockZ runs native, sips RAM, and phones home to nobody.</p>
       <div class="cta-buttons">
         <a href="https://github.com/nextage-soft/dockz" target="_blank" rel="noopener" class="btn btn-primary">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.4 3-.405 1.02.005 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
           Open GitHub repo
         </a>
-        <a href="#install" class="btn btn-ghost">Read the build guide</a>
+        <a href="https://github.com/nextage-soft/dockz/releases/latest" target="_blank" rel="noopener" class="btn btn-ghost">Download the latest release</a>
       </div>
     </div>
   </section>
