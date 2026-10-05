@@ -64,7 +64,7 @@ as a normal Docker context: `docker`, `docker compose`, and buildx just work.
 | 📸&nbsp;**VM snapshots** | Instant APFS copy-on-write snapshots of the VM disk, with rollback. |
 | 🔄&nbsp;**Rosetta** | Run `linux/amd64` images on Apple Silicon. |
 | ⚙️&nbsp;**Configurable** | CPUs, memory, disk limit, `$HOME` virtiofs share, relocatable data folder (external SSD friendly). |
-| 🧰&nbsp;**Docker CLI on demand** | No Homebrew: official static `docker` + compose fetched checksum-verified, terminal wired via a removable `~/.zshrc` block that steps aside for your own install. |
+| 🧰&nbsp;**Docker CLI on demand** | No Homebrew needed: official static `docker` + compose fetched checksum-verified, terminal wired via a removable `~/.zshrc` block that steps aside for your own install. |
 | 🪶&nbsp;**Minimal dependencies** | Apple frameworks, in-repo code, and Apple's open-source swift-nio-ssl (exact pins) for Secure Enclave–backed TLS keys; builds with just the Command Line Tools. |
 
 ## Why DockZ?
@@ -82,7 +82,7 @@ What makes it different from the usual suspects:
 - **Self-bootstrapping on an empty Mac.** The classic chicken-and-egg ("you need
   Docker to build the Docker VM image") is gone: first launch builds the guest
   image inside a throwaway Alpine netboot VM and fetches the official `docker` +
-  compose CLIs in parallel, checksum-verified. No Homebrew, no admin password,
+  compose CLIs in parallel, checksum-verified. No Homebrew needed, no admin password,
   no curl-pipe-bash.
 - **Real `dockerd`, not a reimplementation.** 100 % engine compatibility —
   buildx, compose, registries, everything — because it *is* upstream Docker
@@ -131,7 +131,7 @@ bloat and the license worries."
 - **Apple Silicon** (M1 or newer)
 - Command Line Tools or Xcode (to build from source)
 
-**No Homebrew, no Docker Desktop, no admin password.** The dashboard talks to the
+**No Homebrew needed (it's optional, see below), no Docker Desktop, no admin password.** The dashboard talks to the
 engine directly over vsock, so it needs no `docker` binary at all. Compose stacks
 and container shells do — if the Mac has none, DockZ downloads the official static
 `docker` CLI + compose plugin (≈48 MB) into its own data folder, verifying both
