@@ -21,6 +21,8 @@ plus a Docker Desktop–style dashboard and Multipass-style Linux machines.</p>
   &nbsp;·&nbsp; <a href="docs/deployment-guide.md">Signing guide</a>
 </p>
 
+<p align="center"><b>English</b> · <a href="README.vi.md">Tiếng Việt</a></p>
+
 <p align="center">
   <a href="#features">Features</a> ·
   <a href="#why-dockz">Why DockZ</a> ·
@@ -34,6 +36,11 @@ one Swift dependency (Apple's own swift-nio-ssl, pinned exactly). The engine is 
 as a normal Docker context: `docker`, `docker compose`, and buildx just work.
 
 <p align="center">
+  <a href="https://dockz.nextagesoft.com/#video"><img src="public/intro-poster.jpg" alt="Watch the 34-second DockZ intro" width="880"></a><br>
+  <sub>▶ <a href="https://dockz.nextagesoft.com/#video">Watch the 34-second intro</a></sub>
+</p>
+
+<p align="center">
   <img src="public/architecture.svg" alt="DockZ architecture" width="880">
 </p>
 
@@ -41,11 +48,15 @@ as a normal Docker context: `docker`, `docker compose`, and buildx just work.
 
 ## Screenshots
 
-|                       Containers                       |                    Images                    |
-| :---------------------------------------------------: | :------------------------------------------: |
-| ![Containers](public/dashboard-containers.png)        | ![Images](public/dashboard-images.png)       |
-|                    **Machines**                       |              **Settings / About**            |
-| ![Machines](public/dashboard-machines.png)            | ![Settings](public/dashboard-settings.png)   |
+|                       Containers                       |                     Monitor                     |
+| :---------------------------------------------------: | :---------------------------------------------: |
+| ![Containers](public/dashboard-containers.png)        | ![Monitor](public/dashboard-monitor.png)        |
+|        **Remote engine over TLS (Secure Enclave key)**  |                  **Machines**                   |
+| ![TLS environment](public/dashboard-environments.png) | ![Machines](public/dashboard-machines.png)      |
+|                       **Images**                       |               **Settings / About**              |
+| ![Images](public/dashboard-images.png)                | ![Settings](public/dashboard-settings.png)      |
+
+<sub>Screenshots use demo containers and placeholder hosts (`10.0.0.5`, `203.0.113.10`).</sub>
 
 ---
 

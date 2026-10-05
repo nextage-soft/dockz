@@ -45,3 +45,11 @@ DerivedData/
 !.dev.vars.example
 .env*
 !.env.example
+
+# ---- Intro video source (Remotion project, renders, soundtrack) ----
+# Only the muted web encodes in landing/assets/ are published; the project
+# that produces them stays local.
+promo/
+
+# ---- Claude Code local settings (launch configs, permissions) ----
+.claude/

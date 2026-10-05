@@ -37,8 +37,8 @@
   <!-- Menu bar app -->
   <rect x="50" y="112" width="340" height="72" rx="9" class="card"/>
   <text x="66" y="136" class="label" font-weight="700">DockZ.app (Swift, menu bar)</text>
-  <text x="66" y="155" class="sub">Dashboard · Machines · Settings · port forwarder</text>
-  <text x="66" y="172" class="sub">Zero external Swift dependencies</text>
+  <text x="66" y="155" class="sub">Dashboard · Monitor · Machines · port forwarder · VM watchdog</text>
+  <text x="66" y="172" class="sub">Remote engines: SSH · TLS (key in Secure Enclave) · socket</text>
 
   <!-- docker CLI -->
   <rect x="50" y="200" width="164" height="66" rx="9" class="card"/>
@@ -70,7 +70,7 @@
   <!-- ===== vsock bridge ===== -->
   <line x1="410" y1="150" x2="510" y2="150" class="edgep"/>
   <text x="416" y="142" class="edget">vsock 2375</text>
-  <text x="416" y="166" class="edget">HTTP/1.1 Docker API</text>
+  <text x="416" y="166" class="edget">Docker API</text>
 
   <line x1="410" y1="233" x2="510" y2="233" class="edgep"/>
   <text x="416" y="225" class="edget">relay → guest IP</text>
