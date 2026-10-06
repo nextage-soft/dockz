@@ -74,9 +74,9 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.1.0</string>
+    <string>0.0.0</string>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>0</string>
     <key>LSMinimumSystemVersion</key>
     <string>15.0</string>
     <key>LSUIElement</key>
@@ -98,14 +98,20 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 </plist>
 PLIST
 
-# Release builds stamp the version from the tag (CI sets these); local
-# builds keep the plist defaults above.
-if [[ -n "${APP_VERSION:-}" ]]; then
-    /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $APP_VERSION" "$APP/Contents/Info.plist"
+# Version stamp. Release CI passes APP_VERSION / BUILD_NUMBER from the tag;
+# local builds take them from git — the latest v* tag and the commit count —
+# so a local build never shows a stale hardcoded version (it used to say
+# 0.1.0 long after 0.2.1 shipped).
+if [[ -z "${APP_VERSION:-}" ]]; then
+    APP_VERSION="$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null | sed 's/^v//' || true)"
+    APP_VERSION="${APP_VERSION:-0.0.0}"
 fi
-if [[ -n "${BUILD_NUMBER:-}" ]]; then
-    /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$APP/Contents/Info.plist"
+if [[ -z "${BUILD_NUMBER:-}" ]]; then
+    BUILD_NUMBER="$(git rev-list --count HEAD 2>/dev/null || echo 0)"
 fi
+/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $APP_VERSION" "$APP/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$APP/Contents/Info.plist"
+echo "Version: $APP_VERSION ($BUILD_NUMBER)"
 
 # Hardened runtime: macOS refuses injected libraries (DYLD_INSERT_LIBRARIES)
 # and debugger attachment, so other code can't ride inside DockZ to use what

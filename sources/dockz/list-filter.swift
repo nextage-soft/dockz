@@ -103,6 +103,11 @@ struct ListScopeChips: View {
                 .buttonStyle(.plain)
             }
         }
+        // Chips keep their natural single-line size on every list page; a
+        // crowded header shrinks the search field instead (seen: Machines,
+        // where "Running 0" wrapped to "Runnin / g 0").
+        .lineLimit(1)
+        .fixedSize()
     }
 }
 

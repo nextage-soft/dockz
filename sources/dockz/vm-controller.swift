@@ -24,6 +24,10 @@ final class VMController: NSObject, VZVirtualMachineDelegate {
     /// guest rebooting after a kernel panic, a Virtualization error — is
     /// unexpected and gets the VM restarted. Read on the main queue.
     private(set) var stopWasRequested = false
+    /// Whether this VM ever reached .running — separates "failed to start"
+    /// (don't retry) from "crashed while running" (restart). Set before the
+    /// state change is published, so readers on the main queue see it.
+    private(set) var reachedRunning = false
 
     /// Called on the main queue whenever the state changes.
     var onStateChange: ((VMState) -> Void)?
@@ -55,6 +59,7 @@ final class VMController: NSObject, VZVirtualMachineDelegate {
                         self.virtualMachine = nil
                         self.state = .failed(error.localizedDescription)
                     } else {
+                        self.reachedRunning = true
                         self.state = .running
                     }
                 }

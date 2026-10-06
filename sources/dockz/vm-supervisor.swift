@@ -52,6 +52,23 @@ struct VMRestartPolicy {
         restarts.append(now)
         return true
     }
+
+    enum StopKind: Equatable {
+        /// DockZ asked the VM to stop.
+        case requested
+        /// The VM never reached .running: a configuration or resource problem
+        /// (e.g. its disk is held by another process). Restarting cannot fix
+        /// it and only hides the reason, so it is reported instead.
+        case failedToStart
+        /// The VM was running and stopped on its own: kernel guard reboot,
+        /// Virtualization error. Restart it (within the crash-loop limit).
+        case crashed
+    }
+
+    static func classify(stopWasRequested: Bool, reachedRunning: Bool) -> StopKind {
+        if stopWasRequested { return .requested }
+        return reachedRunning ? .crashed : .failedToStart
+    }
 }
 
 /// Judges /_ping results. Unresponsive = several failures in a row AND no

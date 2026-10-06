@@ -4,11 +4,13 @@ import Foundation
 /// (the view calls start/stop): VM vitals every tick, per-container stats
 /// from one long-lived Docker stats stream per running container (read at
 /// each tick — no new connection per sample), and the /system/df breakdown
-/// every tenth tick (docker walks the filesystem for it).
+/// every tenth tick (docker walks the filesystem for it) — but on every tick
+/// until the first one succeeds, so the tab never sits on "Measuring…" for
+/// ten ticks because the first request went out before the engine answered.
 @MainActor
 final class MonitorStore: ObservableObject {
     static let historyLength = 100
-    private static let breakdownEveryTicks = 10
+    nonisolated private static let breakdownEveryTicks = 10
 
     /// Seconds between samples; user-selectable (1/3/5). At the 5 s default the
     /// 100-point history spans ≈ 8 minutes.
@@ -36,6 +38,9 @@ final class MonitorStore: ObservableObject {
     @Published private(set) var cpuHistory: [Double] = []
     @Published private(set) var memHistory: [Double] = []   // used fraction 0…1
     @Published private(set) var rows: [ContainerRow] = []
+    /// Running containers at the last tick: lets the view tell "stats still
+    /// arriving" apart from "nothing running" while `rows` is empty.
+    @Published private(set) var runningCount = 0
     @Published private(set) var breakdown: MonitorParse.DiskBreakdown?
     @Published private(set) var hostAllocatedBytes: UInt64 = 0
     @Published private(set) var engineInfoLabel = ""
@@ -45,6 +50,7 @@ final class MonitorStore: ObservableObject {
     private var previousSamples: [String: MonitorParse.ContainerSample] = [:]
     private var previousSampleAt: Date?
     private var tick = 0
+    private var breakdownInFlight = false
     private let statsStreams = ContainerStatsStreams()
 
     private var api: () -> DockerAPIClient? = { nil }
@@ -95,6 +101,7 @@ final class MonitorStore: ObservableObject {
         cpuHistory = []
         memHistory = []
         rows = []
+        runningCount = 0
         breakdown = nil
         previousGuest = nil
         previousSamples = [:]
@@ -105,7 +112,9 @@ final class MonitorStore: ObservableObject {
     private func sample() {
         sampleVM()
         sampleContainers()
-        if tick % Self.breakdownEveryTicks == 0 { sampleBreakdown() }
+        if Self.shouldSampleBreakdown(tick: tick, haveBreakdown: breakdown != nil, inFlight: breakdownInFlight) {
+            sampleBreakdown()
+        }
         hostAllocatedBytes = DiskUsage.allocatedBytes(at: DockzPaths().diskImage) ?? 0
         tick += 1
     }
@@ -141,6 +150,7 @@ final class MonitorStore: ObservableObject {
             return
         }
         let running = runningContainers().filter(\.isRunning)
+        runningCount = running.count
         engineInfoLabel = "\(running.count) container\(running.count == 1 ? "" : "s") running"
         statsStreams.sync(running: Set(running.map(\.id)), client: client)
 
@@ -170,11 +180,21 @@ final class MonitorStore: ObservableObject {
         rows = newRows.sorted { $0.cpuPercent > $1.cpuPercent }
     }
 
+    /// Until a breakdown exists, ask on every tick (one request at a time);
+    /// afterwards, every `breakdownEveryTicks` ticks.
+    nonisolated static func shouldSampleBreakdown(tick: Int, haveBreakdown: Bool, inFlight: Bool) -> Bool {
+        guard !inFlight else { return false }
+        return !haveBreakdown || tick % breakdownEveryTicks == 0
+    }
+
     private func sampleBreakdown() {
-        api()?.systemDiskUsage { [weak self] dict in
+        guard let client = api() else { return }
+        breakdownInFlight = true
+        client.systemDiskUsage { [weak self] dict in
             DispatchQueue.main.async {
-                guard let self, let dict else { return }
-                self.breakdown = MonitorParse.diskBreakdown(from: dict)
+                guard let self else { return }
+                self.breakdownInFlight = false
+                if let dict { self.breakdown = MonitorParse.diskBreakdown(from: dict) }
             }
         }
     }
