@@ -20,6 +20,8 @@ struct DockzPaths {
     var macAddressFile: URL { baseDirectory.appendingPathComponent("mac-address.txt") }
     var consoleLog: URL { baseDirectory.appendingPathComponent("console.log") }
     var dockerSocket: URL { baseDirectory.appendingPathComponent("docker.sock") }
+    /// Root shell into the guest for debugging: `nc -U <root>/debug-shell.sock`.
+    var debugShellSocket: URL { baseDirectory.appendingPathComponent("debug-shell.sock") }
     var configFile: URL { baseDirectory.appendingPathComponent("config.json") }
     /// cloud-init seed ISO (cloud-image machines only; absent otherwise).
     var seedISO: URL { baseDirectory.appendingPathComponent("seed.iso") }

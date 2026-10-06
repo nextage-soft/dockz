@@ -20,6 +20,8 @@ final class DockerBringupCoordinator {
     private(set) var guestIP: String?
     var apiClient: DockerAPIClient? { dockerReady ? api : nil }
     private(set) var forwardedPorts: [UInt16] = []
+    /// Set when part of the bring-up failed in a way the user must see.
+    private(set) var setupError: String?
     var onUpdate: (() -> Void)?
 
     init(vm: VMController, paths: DockzPaths) {
@@ -31,18 +33,26 @@ final class DockerBringupCoordinator {
         let connect = vm.vsockConnector()
         api = DockerAPIClient(endpoint: .vsock(connect))
 
+        // Without docker.sock the docker CLI cannot reach the engine even
+        // though the dashboard (over vsock) still works, so say so instead of
+        // only logging it.
         let bridge = DockerSocketBridge(socketPath: paths.dockerSocket.path, connectVsock: connect)
         do {
             try bridge.start()
             self.bridge = bridge
         } catch {
-            NSLog("dockz: socket bridge failed to start: \(error.localizedDescription)")
+            setupError = "The docker CLI can't reach DockZ: \(error.localizedDescription)"
+            HostLog.write("docker.sock bridge failed: \(error.localizedDescription)")
         }
 
-        // Root shell into the guest for debugging: nc -U ~/.dockz/debug-shell.sock
-        let shellSocket = paths.baseDirectory.appendingPathComponent("debug-shell.sock").path
-        let shellBridge = DockerSocketBridge(socketPath: shellSocket, vsockPort: 2378, connectVsock: connect)
-        if (try? shellBridge.start()) != nil { debugShellBridge = shellBridge }
+        // Root shell into the guest for debugging: nc -U <data folder>/debug-shell.sock
+        let shellBridge = DockerSocketBridge(socketPath: paths.debugShellSocket.path, vsockPort: 2378, connectVsock: connect)
+        do {
+            try shellBridge.start()
+            debugShellBridge = shellBridge
+        } catch {
+            HostLog.write("debug-shell.sock bridge failed: \(error.localizedDescription)")
+        }
 
         forwarder.onPortsChanged = { [weak self] ports in
             DispatchQueue.main.async {

@@ -72,15 +72,13 @@ struct SocketPair {
 /// OrbStack, Docker Desktop).
 enum UnixSocketConnector {
     static func open(path: String) throws -> DockerByteStream {
+        if let problem = UnixSocketPath.problem(path) {
+            throw DockzError.socketSetupFailed(problem)
+        }
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else { throw DockzError.socketSetupFailed("socket: \(String(cString: strerror(errno)))") }
         var address = sockaddr_un()
         address.sun_family = sa_family_t(AF_UNIX)
-        let maxLength = MemoryLayout.size(ofValue: address.sun_path)
-        guard path.utf8.count < maxLength else {
-            Darwin.close(fd)
-            throw DockzError.socketSetupFailed("socket path too long: \(path)")
-        }
         withUnsafeMutableBytes(of: &address.sun_path) { raw in
             raw.copyBytes(from: path.utf8)
             raw[path.utf8.count] = 0

@@ -36,6 +36,11 @@ enum StorageLocation {
         let destination = newParent.appendingPathComponent("dockz-data", isDirectory: true)
 
         guard destination.path != source.path else { return }
+        // Refuse a location whose sockets would not fit sun_path, instead of
+        // moving everything and then running without docker.sock.
+        if let problem = UnixSocketPath.problems(inDataRoot: destination).first {
+            throw DockzError.socketSetupFailed(problem)
+        }
         if FileManager.default.fileExists(atPath: destination.path) {
             throw DockzError.socketSetupFailed("\(destination.path) already exists — choose an empty location")
         }

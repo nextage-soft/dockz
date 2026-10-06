@@ -34,6 +34,7 @@ enum TestRunner {
         tlsClientKeyFlow()
         listFilters()
         vmSupervisor()
+        robustness()
 
         print("")
         if failures.isEmpty {

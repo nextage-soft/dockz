@@ -14,9 +14,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let dashboardStore = DashboardStore()
     private var dashboardController: DashboardWindowController?
     private var imageSetupController: GuestImageSetupWindowController?
+    /// Held for the life of the process (see data-root-lock.swift).
+    private var dataRootLock: DataRootLock?
+
+    /// Becomes the only owner of the data folder, or explains who is and quits.
+    private func claimDataFolder() -> Bool {
+        switch DataRootLock.acquire(root: paths.baseDirectory) {
+        case .success(let lock):
+            dataRootLock = lock
+            return true
+        case .failure(.heldByAnotherProcess(let pid)):
+            HostLog.write("data folder already owned by PID \(pid.map(String.init) ?? "?") — not starting a second copy")
+            let other = pid.flatMap { NSRunningApplication(processIdentifier: pid_t($0)) }
+            let alert = NSAlert()
+            alert.messageText = "DockZ is already running"
+            alert.informativeText = "Another copy of DockZ\(pid.map { " (PID \($0))" } ?? "") is using the data folder \(paths.baseDirectory.path). Only one copy can run its virtual machines at a time, so this one will quit."
+            alert.addButton(withTitle: "Quit")
+            NSApp.activate(ignoringOtherApps: true)
+            alert.runModal()
+            other?.activate()
+            NSApp.terminate(nil)
+            return false
+        case .failure(.cannotOpen(let reason)):
+            // Not fatal: an unwritable lock file must not stop DockZ from
+            // starting; it only loses the duplicate-launch protection.
+            HostLog.write("data folder lock unavailable: \(reason)")
+            return true
+        }
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         try? paths.ensureBaseDirectory()
+        guard claimDataFolder() else { return }
         settings = DockzSettings.load(from: paths)
         configureDashboardStore()
         MainMenuBuilder.install(delegate: self)
@@ -97,7 +126,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .running:
             startBringup()
         case .stopped, .failed:
-            let unexpected = !(vmController?.stopWasRequested ?? true)
+            let kind = VMRestartPolicy.classify(
+                stopWasRequested: vmController?.stopWasRequested ?? true,
+                reachedRunning: vmController?.reachedRunning ?? false)
             engineWatchdog.stop()
             bringup?.stop()
             bringup = nil
@@ -105,7 +136,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             display.dockerReady = false
             display.guestIP = nil
             display.forwardedPorts = []
-            if unexpected { recoverFromUnexpectedStop(state) }
+            switch kind {
+            case .requested:
+                break
+            case .crashed:
+                recoverFromUnexpectedStop(state)
+            case .failedToStart:
+                let reason: String
+                if case .failed(let message) = state { reason = message } else { reason = "it stopped while booting" }
+                HostLog.write("VM failed to start (\(reason)) — not retrying")
+                dashboardStore.lastError = "The Docker VM could not start: \(reason)"
+            }
         case .starting, .stopping:
             break
         }
@@ -144,6 +185,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         coordinator.onUpdate = { [weak self] in self?.bringupUpdated() }
         bringup = coordinator
         coordinator.start()
+        if let problem = coordinator.setupError {
+            dashboardStore.lastError = problem
+        }
     }
 
     private func bringupUpdated() {

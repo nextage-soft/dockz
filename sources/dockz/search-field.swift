@@ -32,7 +32,9 @@ struct SearchField: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
         .background(RoundedRectangle(cornerRadius: 7).fill(Color.primary.opacity(0.06)))
-        .frame(width: 240)
+        // Gives up width first when the header row is crowded, so the scope
+        // chips and buttons beside it never have to wrap.
+        .frame(minWidth: 140, idealWidth: 240, maxWidth: 240)
         // ⌘F jumps here. Only one list page is on screen at a time, so the
         // shortcut always belongs to the visible list.
         .background {
@@ -78,10 +80,12 @@ struct ListHeaderBar<Trailing: View>: View {
                 Text(summary)
                     .font(.callout)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
             Spacer(minLength: 8)
             SearchField(prompt: prompt, text: $searchText)
             trailing
+                .fixedSize()
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)

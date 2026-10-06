@@ -19,6 +19,21 @@ are taken from its section here.
   Monitor and the TLS / Secure Enclave environment editor.
 - Architecture diagram no longer claims zero external Swift dependencies (TLS uses Apple's
   swift-nio-ssl) and shows Monitor, the VM watchdog and remote engines.
+- Local builds take their version from the latest git tag and the commit count instead of
+  a hardcoded 0.1.0.
+
+### Fixed
+- A data folder whose path made `docker.sock` longer than macOS allows (103 bytes) left the
+  docker CLI without a socket and said nothing; DockZ now shows the reason, and moving the
+  data folder refuses such a location up front.
+- Two copies of DockZ could run on the same data folder; the second one kept retrying a VM
+  that could not start. A data-folder lock now lets only one copy run, and a VM that fails
+  to start is reported instead of restarted (a VM that crashes while running is still
+  restarted).
+- Monitor no longer sits on "Measuring…" for up to a minute, and says it is reading stats
+  instead of "No running containers" while they arrive.
+- List filter chips no longer wrap mid-word when the header is crowded (seen on Machines);
+  the search field shrinks instead.
 
 ## [0.2.1] - 2026-10-05
 

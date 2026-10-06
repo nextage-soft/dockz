@@ -216,7 +216,9 @@ struct MonitorView: View {
                 .help("How many containers to list")
             }
             if sortedRows.isEmpty {
-                Text("No running containers.")
+                Text(monitor.runningCount > 0
+                     ? "Reading stats for \(monitor.runningCount) running container\(monitor.runningCount == 1 ? "" : "s")…"
+                     : "No running containers.")
                     .font(.caption).foregroundStyle(.secondary)
                     .padding(.vertical, 8)
             } else {
