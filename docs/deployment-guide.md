@@ -20,7 +20,7 @@ app opens but the VM never starts. Every signing command below passes that file.
    [Releases](https://github.com/nextage-soft/dockz/releases) and, optionally,
    check it against the published `.sha256`:
    ```bash
-   cd ~/Downloads && shasum -a 256 -c DockZ-0.2.3.dmg.sha256
+   cd ~/Downloads && shasum -a 256 -c DockZ-0.2.4.dmg.sha256
    ```
 2. Open the DMG and drag **DockZ** onto **Applications**.
 3. Launch DockZ. The first launch builds the Docker VM image (a few minutes).
