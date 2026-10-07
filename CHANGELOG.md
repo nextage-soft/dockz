@@ -6,6 +6,8 @@ are taken from its section here.
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-10-07
+
 ### Changed
 - Quitting DockZ (menu bar Quit, ⌘Q, the Dock, or logout) now shows a "Shutting down
   DockZ…" window listing the Docker engine and Linux machines being stopped, with a check
@@ -116,7 +118,8 @@ Initial version, build from source only: the real `dockerd` in an Alpine VM on
 Virtualization.framework, Docker Desktop–style dashboard, Multipass-style Linux machines with
 k3s/k8s templates, automatic port forwarding, VM snapshots, Rosetta, Docker CLI on demand.
 
-[Unreleased]: https://github.com/nextage-soft/dockz/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/nextage-soft/dockz/compare/v0.2.3...HEAD
+[0.2.3]: https://github.com/nextage-soft/dockz/releases/tag/v0.2.3
 [0.2.2]: https://github.com/nextage-soft/dockz/releases/tag/v0.2.2
 [0.2.1]: https://github.com/nextage-soft/dockz/releases/tag/v0.2.1
 [0.2.0]: https://github.com/nextage-soft/dockz/tree/v0.2.0
