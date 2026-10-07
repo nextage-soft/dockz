@@ -6,6 +6,12 @@ are taken from its section here.
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-10-08
+
+### Changed
+- The README banner and the site's sharing image said "~5 MB" and "zero dependencies"; they
+  now say ~8 MB and no Electron, and the download size reads ~4 MB (it had said 3.5 MB).
+
 ### Fixed
 - DockZ kept a CPU core busy (about 75%, for hours) after anything that runs the builder VM —
   shrinking the disk, building the Docker image or a machine base image — until it was quit.
@@ -124,7 +130,8 @@ Initial version, build from source only: the real `dockerd` in an Alpine VM on
 Virtualization.framework, Docker Desktop–style dashboard, Multipass-style Linux machines with
 k3s/k8s templates, automatic port forwarding, VM snapshots, Rosetta, Docker CLI on demand.
 
-[Unreleased]: https://github.com/nextage-soft/dockz/compare/v0.2.3...HEAD
+[Unreleased]: https://github.com/nextage-soft/dockz/compare/v0.2.4...HEAD
+[0.2.4]: https://github.com/nextage-soft/dockz/releases/tag/v0.2.4
 [0.2.3]: https://github.com/nextage-soft/dockz/releases/tag/v0.2.3
 [0.2.2]: https://github.com/nextage-soft/dockz/releases/tag/v0.2.2
 [0.2.1]: https://github.com/nextage-soft/dockz/releases/tag/v0.2.1
