@@ -86,7 +86,7 @@ Apache-2.0, no accounts, no telemetry, no Electron.
 
 What makes it different from the usual suspects:
 
-- **Genuinely tiny and native.** The app bundle is ~8 MB (a 3.5 MB download) of Swift/SwiftUI on
+- **Genuinely tiny and native.** The app bundle is ~8 MB (a ~4 MB download) of Swift/SwiftUI on
   Apple's Virtualization.framework. No Electron shell, no bundled node/qemu, no
   background updater. The 64 GB VM disk is APFS-sparse — a fresh engine really
   occupies ~1.3 GB.
