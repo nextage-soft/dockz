@@ -79,7 +79,12 @@ dd if=/tmp/gpt.img of=/dev/vda bs=512 skip=$(( TARGET_SECTORS - 33 )) \
 sync
 
 step "verifying"
-e2fsck -f -n /dev/vda2 >/dev/null 2>&1 || fail "the shrunk filesystem did not check clean"
+# Full output goes to the console (builder/shrink.log): a failure here must
+# leave the evidence behind, not just the verdict.
+e2fsck -f -n /dev/vda2 > /tmp/verify.log 2>&1
+rc=$?
+tail -n 60 /tmp/verify.log
+[ "$rc" -eq 0 ] || fail "the shrunk filesystem did not check clean (e2fsck exit $rc)"
 echo "DOCKZ-SHRINK-DONE"
 sync
 poweroff

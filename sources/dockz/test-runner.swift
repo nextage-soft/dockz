@@ -9,6 +9,7 @@ enum TestRunner {
     private static var checks = 0
 
     static func run() -> Never {
+        let dataRoot = isolateDataRoot()
         containerConfig()
         chunkedDecoder()
         logDemux()
@@ -38,6 +39,7 @@ enum TestRunner {
         diskLimit()
         guestSync()
 
+        try? FileManager.default.removeItem(at: dataRoot)
         print("")
         if failures.isEmpty {
             print("✓ ALL TESTS PASSED (\(checks) checks)")
@@ -46,6 +48,26 @@ enum TestRunner {
         print("✗ \(failures.count) FAILED of \(checks) checks:")
         failures.forEach { print("   - \($0)") }
         exit(1)
+    }
+
+    /// Points every DockzPaths() in this process at a fresh temporary folder.
+    /// Code under test logs (HostLog), loads settings (and saves defaults when
+    /// none exist) and so on through the data root; run against the default
+    /// root, the tests wrote into the user's real ~/.dockz/host.log.
+    private static func isolateDataRoot() -> URL {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("dockz-test-root-\(getpid())", isDirectory: true)
+        try? FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        // The argument domain outranks every persistent one, as the
+        // `-dockz.storageRoot <path>` launch argument does.
+        let defaults = UserDefaults.standard
+        var arguments = defaults.volatileDomain(forName: UserDefaults.argumentDomain)
+        arguments["dockz.storageRoot"] = root.path
+        defaults.removeVolatileDomain(forName: UserDefaults.argumentDomain)
+        defaults.setVolatileDomain(arguments, forName: UserDefaults.argumentDomain)
+        expectEqual(DockzPaths().baseDirectory.standardizedFileURL.path, root.standardizedFileURL.path,
+                    "tests: data root is a temporary folder, never the user's")
+        return root
     }
 
     // MARK: - Assertions
