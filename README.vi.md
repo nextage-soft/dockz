@@ -86,7 +86,7 @@ Apache-2.0, không cần tài khoản, không telemetry, không Electron.
 
 Điều làm DockZ khác với những cái tên quen thuộc:
 
-- **Thật sự nhỏ gọn và native.** App bundle chỉ khoảng ~8 MB (bản tải về 3.5 MB), viết bằng Swift/SwiftUI trên
+- **Thật sự nhỏ gọn và native.** App bundle chỉ khoảng ~8 MB (bản tải về ~4 MB), viết bằng Swift/SwiftUI trên
   Virtualization.framework của Apple. Không vỏ Electron, không đóng gói kèm node/qemu, không
   trình cập nhật chạy nền. Ổ đĩa VM 64 GB là file sparse trên APFS — một engine mới tinh thực tế
   chỉ chiếm ~1.3 GB.
