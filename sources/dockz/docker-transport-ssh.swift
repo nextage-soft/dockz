@@ -132,13 +132,8 @@ final class StderrCollector {
     private var buffer = Data()
 
     init() {
-        pipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
-            let chunk = handle.availableData
+        pipe.fileHandleForReading.readChunks { [weak self] chunk in
             guard let self else { return }
-            if chunk.isEmpty {
-                handle.readabilityHandler = nil
-                return
-            }
             self.lock.lock()
             self.buffer.append(chunk)
             if self.buffer.count > 8192 { self.buffer = self.buffer.suffix(4096) }

@@ -29,9 +29,8 @@ final class SerialExpect {
         self.onLine = onLine
         FileManager.default.createFile(atPath: logURL.path, contents: nil)
         logHandle = try? FileHandle(forWritingTo: logURL)
-        readHandle.readabilityHandler = { [weak self] handle in
-            let data = handle.availableData
-            guard let self, !data.isEmpty else { return }
+        readHandle.readChunks { [weak self] data in
+            guard let self else { return }
             self.logHandle?.write(data)
             let text = String(decoding: data, as: UTF8.self)
             self.condition.lock()

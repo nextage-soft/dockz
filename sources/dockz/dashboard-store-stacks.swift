@@ -137,9 +137,7 @@ extension DashboardStore {
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = pipe
-        pipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
-            let data = handle.availableData
-            guard !data.isEmpty else { return }
+        pipe.fileHandleForReading.readChunks { [weak self] data in
             let text = String(decoding: data, as: UTF8.self)
             DispatchQueue.main.async { self?.composeOutput += text }
         }

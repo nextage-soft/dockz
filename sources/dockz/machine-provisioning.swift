@@ -135,9 +135,7 @@ extension MachineManager {
             process.standardInput = stdin
             process.standardOutput = output
             process.standardError = output
-            output.fileHandleForReading.readabilityHandler = { handle in
-                let data = handle.availableData
-                guard !data.isEmpty else { return }
+            output.fileHandleForReading.readChunks { data in
                 let text = String(decoding: data, as: UTF8.self)
                 DispatchQueue.main.async { onOutput(text) }
             }

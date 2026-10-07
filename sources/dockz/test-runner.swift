@@ -38,6 +38,7 @@ enum TestRunner {
         robustness()
         diskLimit()
         guestSync()
+        chunkReader()
 
         try? FileManager.default.removeItem(at: dataRoot)
         print("")

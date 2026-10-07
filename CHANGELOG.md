@@ -6,6 +6,12 @@ are taken from its section here.
 
 ## [Unreleased]
 
+### Fixed
+- DockZ kept a CPU core busy (about 75%, for hours) after anything that runs the builder VM —
+  shrinking the disk, building the Docker image or a machine base image — until it was quit.
+  The console reader stayed installed after the builder VM powered off and spun on end of file.
+  Every pipe and console reader now stops by itself at end of file.
+
 ## [0.2.3] - 2026-10-07
 
 ### Changed
