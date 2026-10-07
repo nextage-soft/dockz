@@ -20,6 +20,9 @@ final class StatusMenuController: NSObject {
         var forwardedPorts: [UInt16] = []
         var rosettaAvailable = false
         var diskImageMissing = false
+        /// Set while DockZ works on the stopped VM's disk (shrinking it to the
+        /// limit): the VM must not start and the menu says why.
+        var diskMaintenance: String?
     }
 
     private let statusItem: NSStatusItem
@@ -68,7 +71,11 @@ final class StatusMenuController: NSObject {
 
         switch display.vmState {
         case .stopped, .failed:
-            menu.addItem(actionItem(title: "Start VM", action: #selector(startVM), enabled: !display.diskImageMissing))
+            if let maintenance = display.diskMaintenance {
+                menu.addItem(infoItem(title: maintenance))
+            } else {
+                menu.addItem(actionItem(title: "Start VM", action: #selector(startVM), enabled: !display.diskImageMissing))
+            }
         case .starting, .stopping:
             menu.addItem(infoItem(title: display.vmState == .starting ? "Starting…" : "Stopping…"))
         case .running:

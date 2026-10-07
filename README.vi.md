@@ -337,7 +337,7 @@ Settings):
 
 | Tệp / thư mục  | Mục đích                                                       |
 | -------------- | -------------------------------------------------------------- |
-| `disk.img`     | Ổ đĩa VM (sparse; tăng dần tới giới hạn dung lượng đĩa đã cấu hình) |
+| `disk.img`     | Ổ đĩa VM (sparse; đúng bằng giới hạn dung lượng — hạ giới hạn thì Apply & Restart sẽ thu nhỏ đĩa, hoặc chạy `DockZ shrink-disk` khi DockZ đang tắt) |
 | `docker.sock`  | Docker socket phía host (bắc cầu tới guest qua vsock)          |
 | `console.log`  | Serial console của guest — nơi đầu tiên cần xem khi debug quá trình boot |
 | `host.log`     | Log vòng đời VM phía host (đổi trạng thái, đường stop/poweroff) |

@@ -37,6 +37,8 @@ final class DashboardWindowController: NSWindowController, NSWindowDelegate {
         // is open it becomes a regular app (Dock icon, ⌘Tab switcher).
         NSApp.setActivationPolicy(.regular)
         showWindow(nil)
+        // A window minimised to the Dock is "open" but invisible; bring it back.
+        if window?.isMiniaturized == true { window?.deminiaturize(nil) }
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }

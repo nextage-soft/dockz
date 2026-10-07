@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 
 /// Regression checks for failure classes found while shooting the docs:
 /// over-long socket paths, two owners of one data folder, start failures
@@ -58,5 +58,36 @@ extension TestRunner {
                "monitor: have one → wait for the period")
         expect(MonitorStore.shouldSampleBreakdown(tick: 10, haveBreakdown: true, inFlight: false),
                "monitor: refresh every tenth tick")
+
+        // A user who opens DockZ always gets a window; only Launch at Login
+        // (a login-item launch event) stays quietly in the menu bar.
+        let openApp = NSAppleEventDescriptor(
+            eventClass: AEEventClass(kCoreEventClass), eventID: AEEventID(kAEOpenApplication),
+            targetDescriptor: nil, returnID: AEReturnID(kAutoGenerateReturnID),
+            transactionID: AETransactionID(kAnyTransactionID))
+        expect(!LaunchIntent.launchedAsLoginItem(openApp), "launch: plain open is a user launch")
+        expect(!LaunchIntent.launchedAsLoginItem(nil), "launch: no event is a user launch")
+        openApp.setParam(NSAppleEventDescriptor(enumCode: OSType(keyAELaunchedAsLogInItem)),
+                         forKeyword: AEKeyword(keyAEPropData))
+        expect(LaunchIntent.launchedAsLoginItem(openApp), "launch: login-item event recognised")
+        expect(LaunchIntent.showsDashboardAtLaunch(launchedAsLoginItem: false, diskImageMissing: false),
+               "launch: user open shows the dashboard")
+        expect(!LaunchIntent.showsDashboardAtLaunch(launchedAsLoginItem: true, diskImageMissing: false),
+               "launch: login item stays in the menu bar")
+        expect(!LaunchIntent.showsDashboardAtLaunch(launchedAsLoginItem: false, diskImageMissing: true),
+               "launch: first-run setup window comes first")
+
+        // Quitting shows what is being stopped; nothing running → quit at once.
+        expect(ShutdownPlan(dockerRunning: false, runningMachines: []).isEmpty, "shutdown: nothing to stop")
+        var plan = ShutdownPlan(dockerRunning: true, runningMachines: ["dev-box", "ci-runner"])
+        expectEqual(plan.steps.map(\.id), [ShutdownPlan.dockerStep, ShutdownPlan.machinesStep],
+                    "shutdown: engine and machines listed")
+        expect(plan.steps[1].title.contains("2 Linux machines: ci-runner, dev-box"), "shutdown: machines named")
+        plan.finish(ShutdownPlan.dockerStep)
+        expect(plan.steps[0].done && !plan.allDone, "shutdown: one step done, not finished")
+        plan.finish(ShutdownPlan.machinesStep)
+        expect(plan.allDone, "shutdown: all steps done")
+        expectEqual(ShutdownPlan(dockerRunning: false, runningMachines: ["k3s"]).steps.map(\.id),
+                    [ShutdownPlan.machinesStep], "shutdown: machines only")
     }
 }

@@ -159,7 +159,7 @@ enum ImageBuilderCLI {
 
     // MARK: - Helpers
 
-    private static func locateGuestDirectory() -> URL? {
+    static func locateGuestDirectory() -> URL? {
         var candidates: [URL] = []
         if let resources = Bundle.main.resourceURL {
             candidates.append(resources.appendingPathComponent("guest", isDirectory: true))
@@ -172,7 +172,7 @@ enum ImageBuilderCLI {
         }
     }
 
-    private static func fetch(_ name: String, into directory: URL) throws -> URL {
+    static func fetch(_ name: String, into directory: URL) throws -> URL {
         let destination = directory.appendingPathComponent(name)
         if FileManager.default.fileExists(atPath: destination.path) { return destination }
         guard let url = URL(string: "\(alpineNetbootBase)/\(name)") else {
@@ -195,7 +195,7 @@ enum ImageBuilderCLI {
     /// VZLinuxBootLoader needs an uncompressed arm64 kernel. Alpine ships an
     /// EFI zboot PE ("MZ" + "zimg", gzip payload at the offset stored in the
     /// header) — older releases were plain gzip. Handle both.
-    private static func fetchDecompressedKernel(into directory: URL) throws -> URL {
+    static func fetchDecompressedKernel(into directory: URL) throws -> URL {
         let plain = directory.appendingPathComponent("vmlinux-virt")
         if FileManager.default.fileExists(atPath: plain.path) { return plain }
         let compressed = try fetch("vmlinuz-virt", into: directory)

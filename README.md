@@ -337,7 +337,7 @@ Settings):
 
 | File / dir     | Purpose                                                        |
 | -------------- | -------------------------------------------------------------- |
-| `disk.img`     | VM disk (sparse; grows up to the configured disk limit)        |
+| `disk.img`     | VM disk (sparse; sized to the disk limit — lowering the limit shrinks it on Apply & Restart, or with `DockZ shrink-disk` while DockZ is closed) |
 | `docker.sock`  | Host-side Docker socket (bridged to the guest over vsock)      |
 | `console.log`  | Guest serial console — first stop for boot debugging           |
 | `host.log`     | Host-side VM lifecycle log (state changes, stop/poweroff path) |

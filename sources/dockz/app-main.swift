@@ -12,6 +12,9 @@ enum DockzMain {
         if arguments.contains("build-image") {
             ImageBuilderCLI.run(force: arguments.contains("--force"))
         }
+        if arguments.contains("shrink-disk") {
+            DiskShrinkCLI.run()
+        }
         if arguments.contains("selftest-edit") {
             EditSelftest.run()
         }
