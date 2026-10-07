@@ -6,6 +6,33 @@ are taken from its section here.
 
 ## [Unreleased]
 
+### Changed
+- Quitting DockZ (menu bar Quit, ⌘Q, the Dock, or logout) now shows a "Shutting down
+  DockZ…" window listing the Docker engine and Linux machines being stopped, with a check
+  as each one finishes, instead of seeming frozen for the seconds a clean VM shutdown takes.
+
+- Monitor's disk card shows space used against the disk limit (orange from 80%, red from
+  95%) instead of against the filesystem size, with how much space is free on the Mac.
+  Settings shows the Mac's free space too.
+
+### Fixed
+- The disk limit is now enforced when it is lowered. Before, the VM disk only ever grew, so
+  a disk created at 64 GB kept using up to 64 GB after the limit was set to 16 GB. Apply &
+  Restart now stops Docker, shrinks the disk offline to the new limit and starts Docker
+  again. A safety copy is kept until the shrink succeeds. If the data does not fit, the
+  disk is left as it is and the message says which limit would fit. `DockZ shrink-disk`
+  does the same from the terminal while DockZ is closed.
+- `docker run` (without `-d`), `docker exec` and other attached commands lost any output
+  printed more than half a second after they started: `sh -c 'echo start; sleep 3; echo
+  end'` showed only "start". The VM's socket relay closed the stream half a second after
+  the docker CLI finished sending input. Existing VMs get the fix at their next start: DockZ
+  now brings the VM's own DockZ service files up to date with the app on every boot (boot
+  files excluded), so later fixes to them reach existing disks too.
+- Opening DockZ while its menu bar icon is hidden (a crowded menu bar or the notch) did
+  nothing, so the app looked frozen. Opening it again from Finder, Spotlight or Launchpad
+  now always shows the dashboard (restoring it if minimised), and a launch you start
+  yourself opens it too; only Launch at Login still starts quietly in the menu bar.
+
 ## [0.2.2] - 2026-10-07
 
 ### Added

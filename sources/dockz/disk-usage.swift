@@ -17,6 +17,13 @@ enum DiskUsage {
         return (values?.fileSize).map(UInt64.init)
     }
 
+    /// Space macOS will give an app for important data on the volume holding
+    /// `url` (what Finder calls "available", purgeable space included).
+    static func volumeAvailableBytes(at url: URL) -> UInt64? {
+        let values = try? url.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
+        return (values?.volumeAvailableCapacityForImportantUsage).flatMap { $0 >= 0 ? UInt64($0) : nil }
+    }
+
     /// "22.1 GB" — decimal GB to match what Finder shows the user.
     static func format(_ bytes: UInt64) -> String {
         String(format: "%.1f GB", Double(bytes) / 1_000_000_000)

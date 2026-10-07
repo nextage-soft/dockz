@@ -111,10 +111,10 @@ struct MonitorView: View {
             } footer: {
                 monitor.vm.map { "cache \(Self.bytes($0.cachedKiB * 1024))" } ?? "—"
             }
-            metricCard("Disk", value: diskSummary) {
-                usageBar(fraction: diskFraction, color: .purple)
+            metricCard("Disk (of limit)", value: diskSummary) {
+                usageBar(fraction: diskFraction, color: diskColor)
             } footer: {
-                "on your Mac: \(Self.bytes(monitor.hostAllocatedBytes))"
+                monitor.hostFreeBytes.map { "Mac free: \(DiskUsage.format($0))" } ?? "—"
             }
             metricCard("Engine", value: monitor.engineInfoLabel.isEmpty ? "—" : monitor.engineInfoLabel) {
                 // Same-size placeholder: EmptyView takes no space and made this
@@ -152,14 +152,25 @@ struct MonitorView: View {
         return "\(Self.bytes(used)) / \(Self.bytes(vm.memTotalKiB * 1024))"
     }
 
+    // Used space is measured against the limit set in Settings, not the
+    // filesystem size: that is the number the user chose and expects to see.
     private var diskSummary: String {
-        guard let vm = monitor.vm, vm.diskSizeKiB > 0 else { return "—" }
-        return "\(Self.bytes(vm.diskUsedKiB * 1024)) / \(Self.bytes(vm.diskSizeKiB * 1024))"
+        guard let vm = monitor.vm, vm.diskSizeKiB > 0, monitor.diskLimitBytes > 0 else { return "—" }
+        return "\(Self.bytes(vm.diskUsedKiB * 1024)) / \(Self.bytes(monitor.diskLimitBytes))"
     }
 
     private var diskFraction: Double {
-        guard let vm = monitor.vm, vm.diskSizeKiB > 0 else { return 0 }
-        return Double(vm.diskUsedKiB) / Double(vm.diskSizeKiB)
+        guard let vm = monitor.vm, monitor.diskLimitBytes > 0 else { return 0 }
+        return Double(vm.diskUsedKiB * 1024) / Double(monitor.diskLimitBytes)
+    }
+
+    private var diskColor: Color {
+        guard let vm = monitor.vm else { return .purple }
+        switch DiskLimit.usageLevel(usedBytes: vm.diskUsedKiB * 1024, limitBytes: monitor.diskLimitBytes) {
+        case .normal: return .purple
+        case .warning: return .orange
+        case .critical: return .red
+        }
     }
 
     private func usageBar(fraction: Double, color: Color) -> some View {

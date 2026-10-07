@@ -35,6 +35,8 @@ enum TestRunner {
         listFilters()
         vmSupervisor()
         robustness()
+        diskLimit()
+        guestSync()
 
         print("")
         if failures.isEmpty {

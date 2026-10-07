@@ -16,6 +16,7 @@ struct VMSettingsView: View {
     @State private var launchAtLogin = LaunchAtLogin.isEnabled
     @State private var launchAtLoginError: String?
     @State private var showCleanup = false
+    @State private var confirmShrink = false
 
     private var hardwareCPUs: Int { ProcessInfo.processInfo.processorCount }
 
@@ -80,16 +81,15 @@ struct VMSettingsView: View {
                     Slider(value: $diskLimitGB, in: 16...256, step: 8) {
                         Text("Disk limit")
                     }
-                    Text("\(Int(diskLimitGB)) GB — growing applies on restart")
+                    Text("\(Int(diskLimitGB)) GB — Docker can store at most this much; applies on restart")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    // A limit below the current disk size cannot take effect —
-                    // ext4 can't be shrunk in place. Say so instead of silently
-                    // ignoring the setting (that silence read as "bug" before).
-                    if let apparent = DiskUsage.apparentBytes(at: DockzPaths().diskImage),
-                       UInt64(diskLimitGB) * 1_073_741_824 < apparent {
-                        Label("The disk is already \(DiskUsage.format(apparent)) — the limit can only grow it. Shrinking requires rebuilding the VM disk (wipes all docker data); reclaim free space below instead.",
-                              systemImage: "exclamationmark.triangle")
+                    // A limit below the disk's size is applied by shrinking
+                    // the disk offline on Apply (DiskShrinker); say what that
+                    // involves before the user presses it.
+                    if diskShrinkPending, let apparent = currentDiskBytes {
+                        Label("The disk is \(apparent / DiskLimit.bytesPerGB) GB. Apply & Restart shrinks it to \(Int(diskLimitGB)) GB: Docker stops, the disk is compacted (a minute or two, needs internet for the disk tools), then Docker starts again. If your data does not fit, nothing changes.",
+                              systemImage: "arrow.down.right.and.arrow.up.left")
                             .font(.caption)
                             .foregroundStyle(.orange)
                     }
@@ -123,8 +123,11 @@ struct VMSettingsView: View {
                     Text("VM: \(store.vmDisplayState)")
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Button("Apply & Restart VM") { apply() }
-                        .keyboardShortcut(.defaultAction)
+                    Button("Apply & Restart VM") {
+                        if diskShrinkPending { confirmShrink = true } else { apply() }
+                    }
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(store.diskMaintenance != nil)
                 }
                 Text("Changes take effect after the VM restarts. Running containers will stop.")
                     .font(.caption)
@@ -219,6 +222,20 @@ struct VMSettingsView: View {
         } message: {
             Text("The VM stops, its disk is rolled back to this snapshot, then restarts. Unsaved changes since the snapshot are lost.")
         }
+        .confirmationDialog(
+            "Shrink the VM disk to \(Int(diskLimitGB)) GB?",
+            isPresented: $confirmShrink,
+            titleVisibility: .visible
+        ) {
+            Button("Stop Docker, Shrink and Restart") { apply() }
+        } message: {
+            Text("Running containers stop. A safety copy of the disk is kept until the shrink succeeds; if your data does not fit in \(Int(diskLimitGB)) GB, the disk is left as it is.")
+        }
+        // A failed shrink sets the limit back to the disk's real size; show it.
+        .onChange(of: store.diskMaintenance) { maintenance in
+            guard maintenance == nil, let settings = store.hostActions?.currentSettings() else { return }
+            diskLimitGB = Double(settings.diskLimitGB)
+        }
         .onAppear {
             loadCurrent()
             if store.baseSystem.isEmpty { store.loadBaseSystemInfo() }
@@ -234,6 +251,10 @@ struct VMSettingsView: View {
         Section {
             LabeledContent("On your Mac") {
                 Text(DiskUsage.summary(for: DockzPaths().diskImage) ?? "—")
+                    .foregroundStyle(.secondary)
+            }
+            LabeledContent("Free on this Mac") {
+                Text(DiskUsage.volumeAvailableBytes(at: DockzPaths().baseDirectory).map(DiskUsage.format) ?? "—")
                     .foregroundStyle(.secondary)
             }
             HStack {
@@ -344,6 +365,14 @@ struct VMSettingsView: View {
         } label: {
             Label(label, systemImage: icon)
         }
+    }
+
+    private var currentDiskBytes: UInt64? { DiskUsage.apparentBytes(at: DockzPaths().diskImage) }
+
+    private var diskShrinkPending: Bool {
+        guard let current = currentDiskBytes else { return false }
+        if case .shrink = DiskLimit.change(currentBytes: current, limitGB: Int(diskLimitGB)) { return true }
+        return false
     }
 
     private func loadCurrent() {

@@ -16,6 +16,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var imageSetupController: GuestImageSetupWindowController?
     /// Held for the life of the process (see data-root-lock.swift).
     private var dataRootLock: DataRootLock?
+    /// Shown while quitting stops the VMs (see shutdown-progress-window.swift).
+    private var shutdownWindow: ShutdownWindowController?
 
     /// Becomes the only owner of the data folder, or explains who is and quits.
     private func claimDataFolder() -> Bool {
@@ -44,6 +46,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Read before anything else: the launch Apple event is only current now.
+        let launchedAsLoginItem = LaunchIntent.launchedAsLoginItem()
         try? paths.ensureBaseDirectory()
         guard claimDataFolder() else { return }
         settings = DockzSettings.load(from: paths)
@@ -75,6 +79,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             presentMissingDiskImageAlert()
         }
+        if LaunchIntent.showsDashboardAtLaunch(launchedAsLoginItem: launchedAsLoginItem,
+                                               diskImageMissing: !paths.diskImageExists) {
+            openDashboard()
+        }
+    }
+
+    /// Opening DockZ again while it runs (Finder, Spotlight, Launchpad, Dock)
+    /// must always show something: its menu bar icon may be hidden by a
+    /// crowded menu bar, and doing nothing here made the app look frozen.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        openDashboard()
+        return false
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
@@ -84,21 +100,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        if refuseWhileDiskMaintenance() { return .terminateCancel }
         let dockerRunning = vmController != nil && (display.vmState == .running || display.vmState == .starting)
-        let machinesRunning = !dashboardStore.machineManager.machines.filter { $0.state == .running || $0.state == .starting }.isEmpty
-        guard dockerRunning || machinesRunning else { return .terminateNow }
+        let runningMachines = dashboardStore.machineManager.machines
+            .filter { $0.state == .running || $0.state == .starting }
+            .map(\.name)
+        let plan = ShutdownPlan(dockerRunning: dockerRunning, runningMachines: runningMachines)
+        guard !plan.isEmpty else { return .terminateNow }
+        // A second quit request while shutting down is already handled.
+        guard shutdownWindow == nil else { return .terminateLater }
+
+        // Stopping the VMs takes seconds: show what is happening (see
+        // shutdown-progress-window.swift) rather than an app that looks frozen.
+        let progress = ShutdownProgress(plan: plan)
+        let window = ShutdownWindowController(progress: progress)
+        shutdownWindow = window
+        window.present()
 
         bringup?.stop()
         bringup = nil
         let group = DispatchGroup()
         if dockerRunning, let vmController {
             group.enter()
-            vmController.stop { group.leave() }
+            vmController.stop {
+                DispatchQueue.main.async { progress.finish(ShutdownPlan.dockerStep) }
+                group.leave()
+            }
         }
         group.enter()
-        dashboardStore.machineManager.stopAll { group.leave() }
+        dashboardStore.machineManager.stopAll {
+            DispatchQueue.main.async { progress.finish(ShutdownPlan.machinesStep) }
+            group.leave()
+        }
         group.notify(queue: .main) {
-            NSApp.reply(toApplicationShouldTerminate: true)
+            // Let the last checkmark show for a moment before the window goes.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                NSApp.reply(toApplicationShouldTerminate: true)
+            }
         }
         return .terminateLater
     }
@@ -112,7 +150,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             refreshMenu()
             return
         }
-        guard vmController == nil else { return }
+        guard vmController == nil, display.diskMaintenance == nil else { return }
+        if DiskShrinker.recoverInterruptedShrink(disk: paths.diskImage) {
+            dashboardStore.lastError = "DockZ quit while shrinking the disk, so the shrink was undone. The disk is back to its earlier size."
+        }
         ensureDiskLimit()
         let controller = VMController(paths: paths, settings: settings)
         controller.onStateChange = { [weak self] state in self?.vmStateChanged(state) }
@@ -198,6 +239,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             pushGuestTimeZone(completion: nil)
             if let connect = vmController?.vsockConnector() {
                 GuestKernelGuard.apply(connect: connect) { _ in }
+                // Images built by an older DockZ keep their guest files;
+                // bring them up to the app's copy (see guest-rootfs-sync.swift).
+                GuestRootfsSync.apply(connect: connect)
             }
             engineWatchdog.start(api: { [weak self] in self?.bringup?.apiClient }) { [weak self] in
                 self?.restartUnresponsiveEngine()
@@ -290,12 +334,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Grows the sparse disk file up to the configured limit before boot; the
     /// guest's dockz-resize service then grows the partition+fs to match.
-    /// Shrinking is never done here (it would corrupt the filesystem).
+    /// Shrinking needs the filesystem shrunk first, offline — that is done by
+    /// shrinkDiskToLimit on Apply, never here.
     private func ensureDiskLimit() {
-        let limitBytes = UInt64(max(settings.diskLimitGB, 8)) * 1024 * 1024 * 1024
-        guard let attributes = try? FileManager.default.attributesOfItem(atPath: paths.diskImage.path),
-              let currentSize = attributes[.size] as? UInt64,
-              currentSize < limitBytes,
+        guard let current = DiskUsage.apparentBytes(at: paths.diskImage),
+              case .grow(let limitBytes) = DiskLimit.change(currentBytes: current, limitGB: settings.diskLimitGB),
               let handle = try? FileHandle(forWritingTo: paths.diskImage) else { return }
         try? handle.truncate(atOffset: limitBytes)
         try? handle.close()
@@ -306,6 +349,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// then quits so everything re-resolves cleanly on next launch. Safest
     /// approach: no live re-pointing of open disk images.
     private func changeStorageLocation(toParent parent: URL?) {
+        guard !refuseWhileDiskMaintenance() else { return }
         let proceed = { [weak self] in
             guard let self else { return }
             do {
@@ -373,6 +417,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Stops the VM, runs `work`, then restarts if it had been running.
     private func withStoppedVM(_ work: @escaping () -> Void) {
+        guard !refuseWhileDiskMaintenance() else { return }
         let wasRunning = vmController != nil
         guard let vmController else {
             work()
@@ -384,6 +429,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             work()
             if wasRunning { self?.startVM() }
         }
+    }
+
+    /// True (after telling the user) while the disk is being shrunk — nothing
+    /// else may touch disk.img until it finishes.
+    private func refuseWhileDiskMaintenance() -> Bool {
+        guard let maintenance = display.diskMaintenance else { return false }
+        presentError("DockZ is busy with the VM disk",
+                     "\(maintenance)\n\nTry again when it has finished — Docker starts again by itself.")
+        return true
     }
 
     private func presentError(_ title: String, _ message: String) {
@@ -402,11 +456,53 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             presentError("Could not save settings",
                          "The new values apply to this run but could not be written to \(paths.configFile.path); they will revert when DockZ quits.")
         }
-        if let vmController {
-            vmController.stop { [weak self] in self?.startVM() }
-        } else {
-            startVM()
+        let restart = { [weak self] in
+            self?.shrinkDiskToLimit { self?.startVM() }
         }
+        if let vmController {
+            vmController.stop { restart() }
+        } else {
+            restart()
+        }
+    }
+
+    /// A limit below the disk's size takes effect here, with the VM stopped:
+    /// the disk is shrunk offline (DiskShrinker), then `done` starts it again.
+    /// If the shrink cannot be done the disk is left as it was and the limit
+    /// is set back to the disk's real size, so Settings never shows a limit
+    /// that is not enforced.
+    private func shrinkDiskToLimit(then done: @escaping () -> Void) {
+        let disk = paths.diskImage
+        guard let current = DiskUsage.apparentBytes(at: disk),
+              case .shrink(let target) = DiskLimit.change(currentBytes: current, limitGB: settings.diskLimitGB)
+        else { return done() }
+        let limitGB = settings.diskLimitGB
+        let headline = "Shrinking the disk to \(limitGB) GB"
+        setDiskMaintenance("\(headline)…")
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let result = Result {
+                try DiskShrinker.shrink(disk: disk, toBytes: target, limitGB: limitGB) { step in
+                    DispatchQueue.main.async { self?.setDiskMaintenance("\(headline) — \(step)…") }
+                }
+            }
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.setDiskMaintenance(nil)
+                if case .failure(let error) = result {
+                    HostLog.write("disk shrink to \(limitGB) GB failed: \(error.localizedDescription)")
+                    self.settings.diskLimitGB = Int(current / DiskLimit.bytesPerGB)
+                    self.settings.save(to: self.paths)
+                    self.dashboardStore.lastError = "The disk was not shrunk to \(limitGB) GB and is unchanged. \(error.localizedDescription)"
+                }
+                done()
+            }
+        }
+    }
+
+    private func setDiskMaintenance(_ text: String?) {
+        display.diskMaintenance = text
+        dashboardStore.diskMaintenance = text
+        refreshMenu()
     }
 
     /// No disk image yet (first run). Offer to build it right here — the netboot

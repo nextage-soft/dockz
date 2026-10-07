@@ -57,10 +57,14 @@ final class DashboardStore: ObservableObject {
     /// (The pull-based `hostActions.vmStateLabel` closure only re-rendered on
     /// the 4-second refresh timer, so Stop/Restart showed no feedback.)
     @Published var vmDisplayState = "Stopped"
+    /// What DockZ is doing to the stopped VM's disk (shrinking it to the
+    /// limit), or nil. Pushed with vmDisplayState.
+    @Published var diskMaintenance: String?
 
     /// Full-window overlay while the VM transitions, so a Stop/Restart click
     /// has visible effect immediately.
     var vmTransitionLabel: String? {
+        if let diskMaintenance { return diskMaintenance }
         switch vmDisplayState {
         case "Starting…": return "Starting the engine…"
         case "Stopping…": return "Stopping the engine…"

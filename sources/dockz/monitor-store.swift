@@ -43,6 +43,10 @@ final class MonitorStore: ObservableObject {
     @Published private(set) var runningCount = 0
     @Published private(set) var breakdown: MonitorParse.DiskBreakdown?
     @Published private(set) var hostAllocatedBytes: UInt64 = 0
+    /// The disk limit from Settings — what "used" is measured against.
+    @Published private(set) var diskLimitBytes: UInt64 = 0
+    /// Free space on the Mac volume holding the data folder.
+    @Published private(set) var hostFreeBytes: UInt64?
     @Published private(set) var engineInfoLabel = ""
 
     private var timer: Timer?
@@ -115,7 +119,10 @@ final class MonitorStore: ObservableObject {
         if Self.shouldSampleBreakdown(tick: tick, haveBreakdown: breakdown != nil, inFlight: breakdownInFlight) {
             sampleBreakdown()
         }
-        hostAllocatedBytes = DiskUsage.allocatedBytes(at: DockzPaths().diskImage) ?? 0
+        let paths = DockzPaths()
+        hostAllocatedBytes = DiskUsage.allocatedBytes(at: paths.diskImage) ?? 0
+        diskLimitBytes = DiskLimit.bytes(forGB: DockzSettings.load(from: paths).diskLimitGB)
+        hostFreeBytes = DiskUsage.volumeAvailableBytes(at: paths.baseDirectory)
         tick += 1
     }
 

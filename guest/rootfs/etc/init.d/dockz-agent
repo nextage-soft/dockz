@@ -7,24 +7,32 @@ depend() {
     use net docker
 }
 
+# socat ends a connection 0.5 s (its default -t) after either side half-closes.
+# The docker CLI half-closes its side of a hijacked stream right after
+# attaching (`docker run` without -i), so output arriving later was dropped:
+# `sh -c 'echo start; sleep 3; echo end'` printed only "start". Keep the other
+# direction open until it ends by itself. 2147483 s (~24 days) is the largest
+# value whose milliseconds still fit a 32-bit int in socat's poll timeout.
+RELAY_OPTS="-t 2147483"
+
 start() {
     ebegin "Starting dockz vsock agents"
     modprobe virtio_vsock 2>/dev/null || true
     start-stop-daemon --start --background --make-pidfile \
         --pidfile /run/dockz-proxy.pid \
-        --exec /usr/bin/socat -- \
+        --exec /usr/bin/socat -- $RELAY_OPTS \
         VSOCK-LISTEN:2375,reuseaddr,fork UNIX-CONNECT:/var/run/docker.sock
     start-stop-daemon --start --background --make-pidfile \
         --pidfile /run/dockz-ip.pid \
-        --exec /usr/bin/socat -- \
+        --exec /usr/bin/socat -- $RELAY_OPTS \
         VSOCK-LISTEN:2376,reuseaddr,fork EXEC:/usr/local/bin/dockz-print-ip
     start-stop-daemon --start --background --make-pidfile \
         --pidfile /run/dockz-power.pid \
-        --exec /usr/bin/socat -- \
+        --exec /usr/bin/socat -- $RELAY_OPTS \
         VSOCK-LISTEN:2377,reuseaddr,fork EXEC:/usr/local/bin/dockz-poweroff
     start-stop-daemon --start --background --make-pidfile \
         --pidfile /run/dockz-shell.pid \
-        --exec /usr/bin/socat -- \
+        --exec /usr/bin/socat -- $RELAY_OPTS \
         VSOCK-LISTEN:2378,reuseaddr,fork EXEC:'/bin/sh -i',stderr
     eend $?
 }
