@@ -81,9 +81,9 @@ folder are your first diagnostic stops; a root debug shell in the guest is one
    the maintainer squash-merges.
 
 By contributing you agree that your work is licensed under the project's
-[Apache-2.0 license](../LICENSE).
+[Apache-2.0 license](/LICENSE).
 
 ## Code of conduct and security
 
-Be kind — see the [Code of Conduct](CODE_OF_CONDUCT.md). Please don't open
-public issues for vulnerabilities — see [SECURITY.md](SECURITY.md).
+Be kind — see the [Code of Conduct](/.github/CODE_OF_CONDUCT.md). Please don't open
+public issues for vulnerabilities — see [SECURITY.md](/.github/SECURITY.md).
