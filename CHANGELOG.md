@@ -6,6 +6,16 @@ are taken from its section here.
 
 ## [Unreleased]
 
+### Fixed
+- The VM's clock fell behind after the Mac slept — hours to days — so database `now()`,
+  logs and signed requests (S3, TLS, JWT) were wrong until DockZ restarted. A VM is frozen
+  while the Mac sleeps and nothing set its time again. DockZ now sets the time of the Docker
+  VM and running Alpine machines when the engine comes up, when the Mac wakes, when its clock
+  or time zone changes, and every minute; the guest also runs its own NTP client (ntpd), so
+  the clock stays right even while DockZ is not responding. Corrections are noted in host.log.
+- With the time zone set to follow the Mac, changing the Mac's time zone now reaches the VM
+  right away instead of at the next restart.
+
 ## [0.2.4] - 2026-10-08
 
 ### Changed

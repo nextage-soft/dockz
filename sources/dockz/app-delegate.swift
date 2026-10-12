@@ -10,6 +10,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var restartPolicy = VMRestartPolicy()
     private let engineWatchdog = EngineWatchdog()
     private var bringup: DockerBringupCoordinator?
+    /// Keeps every running guest's clock on the Mac's (see guest-clock-sync.swift).
+    private var clockSync: GuestClockSyncScheduler?
     private var display = StatusMenuController.DisplayState()
     private let dashboardStore = DashboardStore()
     private var dashboardController: DashboardWindowController?
@@ -52,6 +54,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard claimDataFolder() else { return }
         settings = DockzSettings.load(from: paths)
         configureDashboardStore()
+        startClockSync()
         MainMenuBuilder.install(delegate: self)
 
         menuController = StatusMenuController(actions: .init(
@@ -237,6 +240,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // rebuilds, so push it every time the engine comes up.
         if bringup.dockerReady && !display.dockerReady {
             pushGuestTimeZone(completion: nil)
+            clockSync?.syncAll(.bringUp)
             if let connect = vmController?.vsockConnector() {
                 GuestKernelGuard.apply(connect: connect) { _ in }
                 // Images built by an older DockZ keep their guest files;
@@ -251,6 +255,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         display.guestIP = bringup.guestIP
         display.forwardedPorts = bringup.forwardedPorts
         refreshMenu()
+    }
+
+    private func startClockSync() {
+        let scheduler = GuestClockSyncScheduler(
+            targets: { [weak self] in
+                guard let self else { return [] }
+                var targets = self.dashboardStore.machineManager.clockSyncTargets()
+                if let vmController = self.vmController, self.display.vmState == .running {
+                    targets.insert(.init(name: "Docker VM", connect: vmController.vsockConnector()), at: 0)
+                }
+                return targets
+            },
+            onZoneChange: { [weak self] in
+                // Only "follow this Mac" tracks the Mac; a chosen zone stays.
+                guard let self, self.settings.timeZone.isEmpty, self.display.dockerReady else { return }
+                self.pushGuestTimeZone(completion: nil)
+            })
+        scheduler.start()
+        clockSync = scheduler
     }
 
     private func pushGuestTimeZone(completion: ((String?) -> Void)?) {

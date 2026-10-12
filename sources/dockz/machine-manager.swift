@@ -263,6 +263,17 @@ final class MachineManager: ObservableObject {
         group.notify(queue: .main, execute: completion)
     }
 
+    /// Running machines whose guest has the vsock shell (Alpine images). Cloud
+    /// images (Debian/Ubuntu) have no vsock agent; they run their own
+    /// systemd-timesyncd.
+    func clockSyncTargets() -> [GuestClockSyncScheduler.Target] {
+        machines.compactMap { machine in
+            guard machine.state == .running, let controller = controllers[machine.name],
+                  !loadMeta(name: machine.name).isCloudImage else { return nil }
+            return .init(name: "machine \(machine.name)", connect: controller.vsockConnector())
+        }
+    }
+
     // MARK: - Post-boot (IP + hostname)
 
     private func afterBoot(_ name: String) {

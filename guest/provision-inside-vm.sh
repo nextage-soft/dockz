@@ -81,9 +81,9 @@ for s in devfs dmesg mdev hwdrivers; do chroot /mnt rc-update add "$s" sysinit; 
 for s in modules sysctl hostname fsck root localmount hwclock seedrng bootmisc \
          syslog networking dockz-resize; do chroot /mnt rc-update add "$s" boot; done
 if [ "$PROFILE" = "machine" ]; then
-    for s in sshd dockz-agent; do chroot /mnt rc-update add "$s" default; done
+    for s in sshd dockz-agent ntpd; do chroot /mnt rc-update add "$s" default; done
 else
-    for s in docker dockz-agent rosetta-binfmt; do chroot /mnt rc-update add "$s" default; done
+    for s in docker dockz-agent rosetta-binfmt ntpd; do chroot /mnt rc-update add "$s" default; done
 fi
 for s in mount-ro killprocs savecache; do chroot /mnt rc-update add "$s" shutdown; done
 
