@@ -30,7 +30,7 @@ RUN chmod +x /etc/init.d/dockz-agent /etc/init.d/dockz-resize /etc/init.d/rosett
  && echo 'hvc0::respawn:/sbin/getty -L hvc0 115200 vt100' >> /etc/inittab \
  && for s in devfs dmesg mdev hwdrivers; do rc-update add "$s" sysinit; done \
  && for s in modules sysctl hostname fsck root localmount hwclock seedrng bootmisc syslog networking dockz-resize; do rc-update add "$s" boot; done \
- && for s in docker dockz-agent rosetta-binfmt; do rc-update add "$s" default; done \
+ && for s in docker dockz-agent rosetta-binfmt ntpd; do rc-update add "$s" default; done \
  && for s in mount-ro killprocs savecache; do rc-update add "$s" shutdown; done
 
 # Regenerate the initramfs with virtio support (mkinitfs.conf came from rootfs/).
